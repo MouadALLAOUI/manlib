@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    /* Bleu Avion - La couleur dominante */
+    --primary: 204 86% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Teal - Pour les boutons de succès ou le menu latéral */
+    --secondary: 184 46% 41%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Violet - Éléments informatifs */
+    --accent: 271 27% 35%;
+    --accent-foreground: 210 40% 98%;
+
+    /* Rouge/Rose - Actions destructives */
+    --destructive: 348 83% 58%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 204 86% 45%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Fond très sombre mais avec une touche de bleu pétrole */
+    --background: 210 40% 2%;
+    --foreground: 210 40% 98%;
+
+    /* Bleu Avion (version un peu plus lumineuse pour le contraste) */
+    --primary: 204 86% 55%;
+    --primary-foreground: 210 40% 98%;
+
+    /* Teal (assombri pour les surfaces secondaires) */
+    --secondary: 184 46% 25%;
+    --secondary-foreground: 210 40% 98%;
+
+    /* Violet (plus profond pour les accents) */
+    --accent: 271 20% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    /* Gris foncé pour les bordures et les inputs */
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 204 86% 55%;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+html::-webkit-scrollbar-track {
+  background: hsl(210 40% 2%);
+}
+
+html::-webkit-scrollbar-thumb {
+  background-color: var(--primary);
+  border-radius: 20px;
+  border: 3px solid rgb(89, 194, 89);
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background-color: var(--primary-foreground);
+}

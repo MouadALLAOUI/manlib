@@ -1,0 +1,139 @@
+import { ArrowBigDown } from "lucide-react";
+import { NavigationMenu } from "radix-ui";
+
+export const HeaderComponent = () => {
+    const menuItems = [
+        { label: "ACCUEIL", href: "/dash", isTrigger: false },
+        {
+            label: "LIVRES", href: "#", isTrigger: true, subItems: [
+                { label: "CATEGORIES", href: "/dash/livres/categories" },
+                { label: "LIVRES", href: "/dash/livres/livres" },
+            ]
+        },
+        {
+            label: "Fournisseurs", href: "#", isTrigger: true, subItems: [
+                { label: "Fournisseurs disponibles", href: "#" },
+                { label: "Saisir un BL", href: "#" },
+                { label: "Remboursement", href: "#" },
+                { label: "Synthèse BL", href: "#" },
+                { label: "Synthèse Remboursemnet", href: "#" },
+            ]
+        },
+        {
+            label: "Représentant", href: "#", isTrigger: true, subItems: [
+                { label: "Représentants disponibles", href: "#" },
+                { label: "Saisir un BL", href: "#" },
+                { label: "Remboursement", href: "#" },
+                { label: "Demande de facturation", href: "#" },
+                { label: "Factures", href: "#" },
+                { label: "Remboursement Factures", href: "#" },
+                { label: "Déclaratoin Dépôt", href: "#" },
+                { label: "Cahier de texte", href: "#" },
+                { label: "Cartes de Visite & Chevalet", href: "#" },
+                { label: "synthèse BL", href: "#" },
+                { label: "synthèse Remboursement", href: "#" },
+            ]
+        },
+        { label: "ROBOTS", href: "#", isTrigger: false },
+        {
+            label: "Traçabilité", href: "#", isTrigger: true, subItems: [
+                { label: "clients", href: "#" },
+                { label: "BL Clients", href: "#" },
+                { label: "Remboursement Client", href: "#" },
+                { label: "Synthèse", href: "#" },
+            ]
+        },
+        {
+            label: "Synthèses Globales", href: "#", isTrigger: true, subItems: [
+                { label: "Livraison Fournisseurs --> MSM-MEDIAS", href: "#" },
+                { label: "Livraison MSM-MEDIAS --> REP", href: "#" },
+                { label: "Ventes", href: "#" },
+                { label: "Dépôt", href: "#" },
+                { label: "Remboursement Fournisseurs", href: "#" },
+                { label: "Remboursement REP", href: "#" },
+                { label: "Balance", href: "#" },
+            ]
+        },
+        {
+            label: "Emailing", href: "#", isTrigger: true, subItems: [
+                { label: "Simple Email", href: "#" },
+                { label: "Invitation", href: "#" },
+            ]
+        },
+        {
+            label: "Réglages", href: "#", isTrigger: true, subItems: [
+                { label: "Season de travail", href: "#" },
+                { label: "Pied de facture", href: "#" },
+                { label: "Modèles Cahier de texte", href: "#" },
+            ]
+        },
+        { label: "SAISON : 2026 / 2027", href: "#", isTrigger: false },
+        { label: "Déconnexion", href: "#", isTrigger: false },
+    ]
+
+    return (
+        <header className={styles.header}>
+            <NavigationMenu.Root className={styles.nav}>
+                <NavigationMenu.List className={styles.navList}>
+                    {menuItems.map((item, index) => {
+                        if (!item.isTrigger) {
+                            return (
+                                <NavigationMenu.Item key={index}>
+                                    <NavigationMenu.Link
+                                        className={`${styles.navLinkHeader} hover:bg-gray-200`}
+                                        href={item.href}
+                                    >
+                                        {item.label}
+                                    </NavigationMenu.Link>
+                                </NavigationMenu.Item>
+                            )
+                        } else if (item.isTrigger) {
+                            return (
+                                <NavigationMenu.Item key={index}>
+                                    <NavigationMenu.Trigger className={`${styles.navTrigger} hover:bg-gray-200`}>
+                                        {item.label} {" "}
+                                        <ArrowBigDown size={10} className="relative top-px text-violet10 transition-transform duration-[250] ease-in group-data-[state=open]:-rotate-180" />
+                                    </NavigationMenu.Trigger>
+                                    <NavigationMenu.Content className={styles.navContent}>
+                                        <ul className="m-0 grid list-none gap-x-2.5 p-[10px] sm:w-[600px] sm:grid-flow-col sm:grid-rows-3">
+                                            {item.subItems.map((subItem, subIndex) => (
+                                                <li key={subIndex}>
+                                                    <NavigationMenu.Link className={`${styles.navLink} hover:bg-gray-200`}
+                                                        href={subItem.href}
+                                                    >
+                                                        {subItem.label}
+                                                    </NavigationMenu.Link>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </NavigationMenu.Content>
+                                </NavigationMenu.Item>
+                            )
+                        } else {
+                            return null;
+                        }
+                    })}
+                    <NavigationMenu.Indicator className={styles.navIndicator}>
+                        <div className="relative top-[70%] size-2.5 rotate-45 rounded-tl-sm bg-white" />
+                    </NavigationMenu.Indicator>
+                    <div className="perspective-[2000px] absolute top-full flex w-full justify-center">
+                        <NavigationMenu.Viewport className={styles.navViewport} />
+                    </div>
+                </NavigationMenu.List>
+            </NavigationMenu.Root>
+        </header>
+    );
+}
+
+
+const styles = {
+    header: "HeaderComponent w-[98%] py-2 mx-auto",
+    nav: "relative z-10 flex w-[98%] justify-center px-2",
+    navList: "center m-0 flex list-none rounded-md bg-white p-1 shadow-[0_2px_10px] shadow-blackA4",
+    navTrigger: "group flex select-none items-center justify-between gap-0.5 rounded px-3 py-2 text-[15px] font-medium leading-none text-violet11 outline-none hover:bg-violet3 focus:shadow-[0_0_0_2px] focus:shadow-violet7",
+    navContent: "absolute left-0 top-0 w-full data-[motion=from-end]:animate-enterFromRight data-[motion=from-start]:animate-enterFromLeft data-[motion=to-end]:animate-exitToRight data-[motion=to-start]:animate-exitToLeft sm:w-auto",
+    navLinkHeader: "flex items-center justify-between select-none rounded-md p-3 py-2 text-[15px] font-medium leading-none no-underline outline-none transition-colors hover:bg-mauve3 focus:shadow-[0_0_0_2px] focus:shadow-violet7",
+    navLink: "block select-none rounded px-3 py-2 text-[15px] font-medium leading-none text-violet11 no-underline outline-none hover:bg-violet3 focus:shadow-[0_0_0_2px] focus:shadow-violet7",
+    navIndicator: "top-full z-10 flex h-2.5 items-end justify-center overflow-hidden transition-[width,transform_250ms_ease] data-[state=hidden]:animate-fadeOut data-[state=visible]:animate-fadeIn",
+    navViewport: "relative mt-2.5 h-[var(--radix-navigation-menu-viewport-height)] w-full origin-[top_center] overflow-hidden rounded-md bg-white transition-[width,_height] duration-300 data-[state=closed]:animate-scaleOut data-[state=open]:animate-scaleIn sm:w-[var(--radix-navigation-menu-viewport-width)]",
+}
