@@ -14,240 +14,231 @@ import {
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 import { Textarea } from "../../../components/ui/textarea";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CustomSelectComponent } from "../../../components/ui/select";
+import livreService from "../../../api/services/livreService";
+import categoryService from "../../../api/services/categoryService";
+import toast from "react-hot-toast";
 
 function LivresPage() {
-
-    const livres = [
-        {
-            id: 1,
-            titre: "informatique et programmation au primaire N1",
-            code: "R1",
-            categorie: "Primaire",
-            achat: "20.00",
-            vente: "25.00",
-            PPublique: "30",
-            NbrPages: "200",
-            color: "bg-green-100 hover:bg-green-200",
-            desc: " Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptas, voluptate.",
-        },
-        {
-            id: 2,
-            titre: "informatique et programmation au primaire N2",
-            code: "R2",
-            categorie: "Primaire",
-            achat: "20.00",
-            vente: "25.00",
-            PPublique: "30",
-            NbrPages: "200",
-            color: "bg-blue-100 text-red-900 hover:bg-blue-200",
-            desc: " Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptas, voluptate.",
-        },
-        {
-            id: 3,
-            titre: "informatique et programmation au primaire N3",
-            code: "R3",
-            categorie: "Primaire",
-            achat: "20.00",
-            vente: "25.00",
-            PPublique: "30",
-            NbrPages: "200",
-            // color: "bg-green-100",
-            desc: " Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptas, voluptate.",
-        },
-    ];
+    const [livres, setLivres] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const [titre, setTitre] = useState("");
     const [code, setCode] = useState("");
-    const [categorie, setCategorie] = useState("Primaire");
+    const [categorie, setCategorie] = useState("");
     const [achat, setAchat] = useState("");
     const [vente, setVente] = useState("");
     const [ppublique, setPPublique] = useState("");
     const [pages, setPages] = useState("");
     const [color, setColor] = useState("#FFFFFF");
     const [desc, setDesc] = useState("");
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const fields = { titre, code, categorie, achat, vente, ppublique, pages, color, desc };
     const fieldsFunc = { setTitre, setCode, setCategorie, setAchat, setVente, setPPublique, setPages, setColor, setDesc };
 
-    const handleAction = (type, row) => {
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const [livresRes, categoriesRes] = await Promise.all([
+                livreService.getAll(),
+                categoryService.getAll()
+            ]);
+            setLivres(livresRes.data.data || livresRes.data);
+            setCategories(categoriesRes.data.data || categoriesRes.data);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            toast.error("Erreur lors du chargement des données");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const handleSubmit = async () => {
+        try {
+            const data = {
+                titre,
+                code,
+                category_id: categorie, // Assuming the API expects category_id
+                prix_achat: achat,
+                prix_vente: vente,
+                description: desc,
+                // Add other fields if necessary
+            };
+            await livreService.create(data);
+            toast.success("Livre ajouté avec succès");
+            setIsDialogOpen(false);
+            resetForm();
+            fetchData();
+        } catch (error) {
+            console.error("Error creating livre:", error);
+            toast.error("Erreur lors de l'ajout du livre");
+        }
+    };
+
+    const resetForm = () => {
+        setTitre("");
+        setCode("");
+        setCategorie("");
+        setAchat("");
+        setVente("");
+        setPPublique("");
+        setPages("");
+        setColor("#FFFFFF");
+        setDesc("");
+    };
+
+    const handleAction = async (type, row) => {
         if (type === "delete") {
-            console.log("Deleting ID:", row.id);
+            if (window.confirm("Êtes-vous sûr de vouloir supprimer ce livre ?")) {
+                try {
+                    await livreService.delete(row.id);
+                    toast.success("Livre supprimé");
+                    fetchData();
+                } catch (error) {
+                    toast.error("Erreur lors de la suppression");
+                }
+            }
         } else if (type === "edit") {
+            // Implement edit logic if needed
             console.log("Editing row:", row);
         }
     };
 
     return (
-        <div>
-            <div className="flex items-center justify-between mb-4">
-                <h1>Liste des livres</h1>
-                <AddCategoryDialog fields={fields} fieldsFunc={fieldsFunc} onSubmit={() => console.log(fields)} />
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Liste des livres</h1>
+                <AddCategoryDialog 
+                    fields={fields} 
+                    fieldsFunc={fieldsFunc} 
+                    onSubmit={handleSubmit} 
+                    categories={categories}
+                    open={isDialogOpen}
+                    onOpenChange={setIsDialogOpen}
+                />
             </div>
 
-            <CustomDataTable
-                data={livres}
-                variant="green"
-                pageSize={4}
-                actions={["view", "edit", "delete"]}
-                onAction={handleAction}
-                columns={[
-                    { header: "Titre", accessor: "titre" },
-                    { header: "Code", accessor: "code" },
-                    { header: "Catégorie", accessor: "categorie" },
-                    { header: "Prix d'achat", accessor: "achat" },
-                    { header: "Prix de vente", accessor: "vente" },
-                    { header: "Prix public", accessor: "PPublique" },
-                    { header: "Nombre de pages", accessor: "NbrPages" }
-                ]}
-            />
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <CustomDataTable
+                    data={livres}
+                    variant="slate"
+                    pageSize={10}
+                    actions={["view", "edit", "delete"]}
+                    onAction={handleAction}
+                    isLoading={isLoading}
+                    columns={[
+                        { header: "Titre", accessor: "titre" },
+                        { header: "Code", accessor: "code" },
+                        { header: "Catégorie", accessor: "category_name" }, // Assuming the API resource returns category_name
+                        { header: "Prix d'achat", accessor: "prix_achat" },
+                        { header: "Prix de vente", accessor: "prix_vente" },
+                    ]}
+                />
+            </div>
         </div>
     )
 }
 
-const AddCategoryDialog = ({ onSubmit = () => { }, fields, fieldsFunc, setColor }) => {
+const AddCategoryDialog = ({ fields, fieldsFunc, onSubmit = () => { }, categories = [], open, onOpenChange }) => {
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
-                <Button className="bg-emerald-700 hover:bg-emerald-800 text-white">Ajouter un Livre</Button>
+                <Button className="bg-slate-900 hover:bg-black text-white px-6 h-11 rounded-xl font-bold shadow-lg shadow-slate-100 transition-all hover:scale-[1.02]">
+                    + Ajouter un livre
+                </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-center mb-5">Ajouter un livre</DialogTitle>
-                    <DialogDescription className="space-y-4" asChild>
-                        <div className="grid grid-cols-2 gap-2">
-
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="titre" className="text-slate-500 font-medium text-sm">Titre :</label>
-                                <Input
-                                    type="text"
-                                    id="titre"
-                                    value={fields.titre}
-                                    onChange={(e) => fieldsFunc.setTitre(e.target.value)}
-                                    placeholder="saisir le titre du livre"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="code" className="text-slate-500 font-medium text-sm">Code :</label>
-                                <Input
-                                    type="text"
-                                    id="code"
-                                    value={fields.code}
-                                    onChange={(e) => fieldsFunc.setCode(e.target.value)}
-                                    placeholder="code"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-
-
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="categorie" className="text-slate-500 font-medium text-sm">Catégorie :</label>
-                                <CustomSelectComponent
-                                    items={["Primaire", "Collège", "Lycée", "Universitaire"]}
-                                    placeholder="Choisir une catégorie"
-                                    onValueChange={(value) => fieldsFunc.setCategorie(value)}
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                    value={fields.categorie}
-                                />
-                            </div>
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="achat" className="text-slate-500 font-medium text-sm">Achat (DH) :</label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    step={0.01}
-                                    id="achat"
-                                    value={fields.achat}
-                                    onChange={(e) => fieldsFunc.setAchat(e.target.value)}
-                                    placeholder="saisir le prix d'achat"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-
-
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="vente" className="text-slate-500 font-medium text-sm">Vente (DH) :</label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    step={0.01}
-                                    id="vente"
-                                    value={fields.vente}
-                                    onChange={(e) => fieldsFunc.setVente(e.target.value)}
-                                    placeholder="saisir le prix de vente"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="ppublique" className="text-slate-500 font-medium text-sm">Prix public (DH) :</label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    step={0.01}
-                                    id="ppublique"
-                                    value={fields.ppublique}
-                                    onChange={(e) => fieldsFunc.setPPublique(e.target.value)}
-                                    placeholder="saisir le prix public"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-
-
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="pages" className="text-slate-500 font-medium text-sm">Nbr de pages :</label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    id="pages"
-                                    value={fields.pages}
-                                    onChange={(e) => fieldsFunc.setPages(e.target.value)}
-                                    placeholder="saisir le nombre de pages"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="color" className="block text-slate-500 mb-1 font-medium text-sm">
-                                    Couleur du livre:
-                                </label>
-                                <Input
-                                    type="color"
-                                    id="color"
-                                    value={fields.color}
-                                    onChange={(e) => fieldsFunc.setColor(e.target.value)}
-                                    className="h-10 w-20 p-1 cursor-pointer"
-                                />
-                                <span className="text-xs font-mono">{fields.color}</span>
-                            </div>
-
-
-                            <div className="col-span-2 flex flex-col content-center justify-between">
-                                <label htmlFor="description" className="text-slate-500 font-medium text-sm">Déscription (Optionnelle) :</label>
-                                <Textarea
-                                    type="text"
-                                    id="description"
-                                    value={fields.desc}
-                                    onChange={(e) => fieldsFunc.setDesc(e.target.value)}
-                                    placeholder="saisir la description du livre"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-
-                        </div>
-                    </DialogDescription>
+            <DialogContent className="sm:max-w-[700px] rounded-2xl border-none shadow-2xl p-0 overflow-hidden">
+                <DialogHeader className="bg-slate-900 p-8 text-white">
+                    <DialogTitle className="text-2xl font-black tracking-tight uppercase">Nouveau Livre</DialogTitle>
+                    <p className="text-slate-400 text-sm mt-1">Enregistrer un nouvel ouvrage dans le catalogue.</p>
                 </DialogHeader>
-                <DialogFooter>
+
+                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    <div className="space-y-2 col-span-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Titre du livre</label>
+                        <Input
+                            placeholder="Entrer le titre complet"
+                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
+                            value={fields.titre}
+                            onChange={(e) => fieldsFunc.setTitre(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Code / Référence</label>
+                        <Input
+                            placeholder="Ex: R-102"
+                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
+                            value={fields.code}
+                            onChange={(e) => fieldsFunc.setCode(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Catégorie</label>
+                        <CustomSelectComponent
+                            items={categories.map(c => ({ label: c.name, value: c.id }))}
+                            placeholder="Sélectionner"
+                            value={fields.categorie}
+                            onValueChange={fieldsFunc.setCategorie}
+                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Prix d'Achat (DH)</label>
+                        <Input
+                            type="number"
+                            placeholder="0.00"
+                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
+                            value={fields.achat}
+                            onChange={(e) => fieldsFunc.setAchat(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Prix de Vente (DH)</label>
+                        <Input
+                            type="number"
+                            placeholder="0.00"
+                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
+                            value={fields.vente}
+                            onChange={(e) => fieldsFunc.setVente(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="space-y-2 col-span-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Description</label>
+                        <Textarea
+                            placeholder="Détails supplémentaires..."
+                            className="min-h-[100px] border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50 resize-none"
+                            value={fields.desc}
+                            onChange={(e) => fieldsFunc.setDesc(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100 flex gap-3">
                     <DialogClose asChild>
-                        <div>
-                            <Button className="bg-emerald-900 text-white" variant="outline" onClick={onSubmit}>Ajouter</Button>
-                            <Button className="bg-red-700 text-white" variant="outline">Fermer</Button>
-                        </div>
+                        <Button variant="outline" className="h-12 px-8 rounded-xl font-bold text-slate-600 border-slate-200">Annuler</Button>
                     </DialogClose>
+                    <Button
+                        onClick={onSubmit}
+                        className="h-12 px-8 rounded-xl font-bold bg-slate-900 hover:bg-black text-white shadow-lg shadow-slate-200 transition-all"
+                    >
+                        Enregistrer le livre
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
-}
+};
 
 export default LivresPage;

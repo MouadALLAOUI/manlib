@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../../../components/ui/button";
 import { CustomDataTable } from "../../../components/ui/table";
 import {
@@ -12,31 +12,92 @@ import {
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 import { Textarea } from "../../../components/ui/textarea";
+import representantService from "../../../api/services/representantService";
+import toast from "react-hot-toast";
 
 function ReprésentantDisponibles() {
+    const [représentants, setReprésentants] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
     // 1. Centralized State Object
     const [formData, setFormData] = useState({
-        nomPrenom: "",
+        nom: "",
         cin: "",
         zone: "",
         tel: "",
         email: "",
         adresse: "",
-        codePostale: "",
+        code_postale: "",
         ville: "",
-        lieuTravail: "",
+        lieu_de_travail: "",
         login: "",
         password: ""
     });
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    // Mock data for the table
-    const représentants = [
-        { id: 1, nom: "Adnane", state: "Disponible", date: "03/02/2026" },
-        { id: 2, nom: "Abjalil", state: "Indisponible", date: "16/03/2026" },
-    ];
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const response = await representantService.getAll();
+            setReprésentants(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching representants:", error);
+            toast.error("Erreur lors du chargement des représentants");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleAction = async (type, row) => {
+        if (type === "delete") {
+            if (window.confirm("Supprimer ce représentant ?")) {
+                try {
+                    await representantService.delete(row.id);
+                    toast.success("Représentant supprimé");
+                    fetchData();
+                } catch (error) {
+                    toast.error("Erreur de suppression");
+                }
+            }
+        } else if (type === "edit") {
+            console.log("Editing row:", row);
+        }
+    };
+
+    const handleSubmit = async () => {
+        try {
+            await representantService.create(formData);
+            toast.success("Représentant ajouté avec succès");
+            setIsDialogOpen(false);
+            resetForm();
+            fetchData();
+        } catch (error) {
+            toast.error("Erreur lors de l'ajout du représentant");
+        }
+    };
+
+    const resetForm = () => {
+        setFormData({
+            nom: "",
+            cin: "",
+            zone: "",
+            tel: "",
+            email: "",
+            adresse: "",
+            code_postale: "",
+            ville: "",
+            lieu_de_travail: "",
+            login: "",
+            password: ""
+        });
     };
 
     return (
@@ -46,24 +107,30 @@ function ReprésentantDisponibles() {
                 <AddReprésentantDialog
                     formData={formData}
                     onChange={handleInputChange}
-                    onSubmit={() => console.log("Submitting:", formData)}
+                    onSubmit={handleSubmit}
+                    open={isDialogOpen}
+                    onOpenChange={setIsDialogOpen}
                 />
             </div>
 
             <CustomDataTable
                 data={représentants}
                 variant="green"
+                onAction={handleAction}
+                isLoading={isLoading}
+                actions={["view", "edit", "delete"]}
                 columns={[
                     { header: "Nom", accessor: "nom" },
-                    { header: "Statut", accessor: "state" },
-                    { header: "Date", accessor: "date" },
+                    { header: "Zone", accessor: "zone" },
+                    { header: "Téléphone", accessor: "tel" },
+                    { header: "Ville", accessor: "ville" },
                 ]}
             />
         </div>
     );
 }
 
-const AddReprésentantDialog = ({ formData, onChange, onSubmit }) => {
+const AddReprésentantDialog = ({ formData, onChange, onSubmit, open, onOpenChange }) => {
 
     // Helper to render form rows (Label on left, Input on right)
     const FormRow = ({ label, id, type = "text", isTextArea = false }) => (
@@ -93,7 +160,7 @@ const AddReprésentantDialog = ({ formData, onChange, onSubmit }) => {
     );
 
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
                 <Button className="bg-emerald-700 hover:bg-emerald-800 text-white">
                     Ajouter un Représentant
@@ -107,7 +174,7 @@ const AddReprésentantDialog = ({ formData, onChange, onSubmit }) => {
                 </DialogHeader>
 
                 <div className="space-y-3 px-2">
-                    <FormRow label="Nom et prénom" id="nomPrenom" />
+                    <FormRow label="Nom et prénom" id="nom" />
                     <FormRow label="CIN" id="cin" />
 
                     <div className="py-2" /> {/* Spacer */}
@@ -116,10 +183,10 @@ const AddReprésentantDialog = ({ formData, onChange, onSubmit }) => {
                     <FormRow label="Tél" id="tel" />
                     <FormRow label="E-mail" id="email" type="email" />
                     <FormRow label="Adresse" id="adresse" />
-                    <FormRow label="Code Postale" id="codePostale" />
+                    <FormRow label="Code Postale" id="code_postale" />
                     <FormRow label="Ville" id="ville" />
 
-                    <FormRow label="Lieu de travail" id="lieuTravail" isTextArea />
+                    <FormRow label="Lieu de travail" id="lieu_de_travail" isTextArea />
 
                     <div className="py-2" /> {/* Spacer */}
 
@@ -128,14 +195,12 @@ const AddReprésentantDialog = ({ formData, onChange, onSubmit }) => {
                 </div>
 
                 <DialogFooter className="mt-6 sm:justify-start">
-                    <DialogClose asChild>
-                        <Button
-                            className="bg-sky-500 hover:bg-sky-600 text-white w-full sm:w-auto"
-                            onClick={onSubmit}
-                        >
-                            Ajouter le représentant
-                        </Button>
-                    </DialogClose>
+                    <Button
+                        className="bg-sky-500 hover:bg-sky-600 text-white w-full sm:w-auto"
+                        onClick={onSubmit}
+                    >
+                        Ajouter le représentant
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

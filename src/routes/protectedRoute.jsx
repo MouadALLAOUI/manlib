@@ -1,9 +1,9 @@
 import { Loader2 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import useAppStore from "../store/useAppStore";
 import { Navigate, Outlet } from "react-router-dom";
 
 export const ProtectedRoute = ({ children, role = "admin", indexPath = "/" }) => {
-    const { user, loading } = useAuth();
+    const { user, loading } = useAppStore();
     // console.log("ProtectedRoute - Auth State:", { user, profile, loading });
     if (loading) {
         return (

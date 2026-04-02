@@ -1,10 +1,38 @@
+import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/button";
 import { AccordionComponent } from "../../components/ui/accordion";
 import FormInputRow from "../../components/ui/FormInputRaw";
-import { useState } from "react";
+import destinationService from "../../api/services/destinationService";
+import toast from "react-hot-toast";
 
 function HomePage() {
     const [selectedDestination, setSelectedDestination] = useState("");
+    const [destinations, setDestinations] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [destination, setDestination] = useState("");
+
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const response = await destinationService.getAll();
+            setDestinations(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching destinations:", error);
+            toast.error("Erreur lors du chargement des destinations");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const handleDestinationChange = (value) => {
+        setDestination(value);
+        toast.success(`Destination change a: ${value}`);
+    };
+
     const accordionItems = [
         {
             title: "Choisir une déstination",
@@ -16,11 +44,10 @@ function HomePage() {
                         placeholder="MSM-Medias"
                         id="msmMedias"
                         inputType="select"
-                        items={[
-                            { label: "MSM", value: "msm" },
-                            { label: "Kech", value: "kech" },
-                            { label: "Safi", value: "safi" }
-                        ]}
+                        items={destinations.map((item) => ({
+                            label: item.destination,
+                            value: item.id
+                        }))}
                         layout="column"
                         allowEmpty={true}
                         emptyLabel="MSM-Medias"
@@ -31,7 +58,7 @@ function HomePage() {
             ),
         },
         {
-            title: "Stock - Livraison --|-- Categorie : Primaire",
+            title: "Achat - Vente - Stock / Niveau --|-- Categorie : Primaire",
             content: (
                 <div className="px-5 py-[15px]">
                     <Button variant="outline" className="mb-2">

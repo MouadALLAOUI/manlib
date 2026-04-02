@@ -4,6 +4,7 @@ import { cn } from "../../lib/utils"
 import { Button } from "./button"
 import { BadgeCheck, BadgeX, Eye, Printer, SquareArrowLeft, SquareArrowRight, SquarePen, Trash } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
+import { AlertBox, AlertBoxTrigger, AlertBoxContent, AlertBoxContainer } from "./AlertBox"
 
 const Table = React.forwardRef(({ className, ...props }, ref) => (
   <div className="relative w-full overflow-auto">
@@ -40,8 +41,8 @@ const TableRow = React.forwardRef(({ className, striped, ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
-      "border-b transition-colors hover:bg-emerald-50 data-[state=selected]:bg-muted",
-      striped && "odd:bg-white even:bg-slate-200",
+      "border-b transition-colors hover:bg-slate-50 data-[state=selected]:bg-muted",
+      striped && "odd:bg-white even:bg-slate-50/50",
       className
     )}
     {...props} />
@@ -52,7 +53,7 @@ const TableHead = React.forwardRef(({ className, ...props }, ref) => (
   <th
     ref={ref}
     className={cn(
-      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      "h-12 px-4 text-left align-middle font-medium text-slate-500 [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props} />
@@ -62,7 +63,7 @@ TableHead.displayName = "TableHead"
 const TableCell = React.forwardRef(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)}
+    className={cn("p-4 align-middle text-slate-700 [&:has([role=checkbox])]:pr-0", className)}
     {...props} />
 ))
 TableCell.displayName = "TableCell"
@@ -70,133 +71,179 @@ TableCell.displayName = "TableCell"
 const TableCaption = React.forwardRef(({ className, ...props }, ref) => (
   <caption
     ref={ref}
-    className={cn("mt-4 text-sm text-muted-foreground", className)}
+    className={cn("mt-4 text-sm text-slate-500", className)}
     {...props} />
 ))
 TableCaption.displayName = "TableCaption"
 
 
 const CustomDataTable = ({
-  data,
+  data = [],
   columns,
   actions = [], // e.g., ["edit", "delete", "view"]
+  actionsDetaille = {
+    delete: {
+      type: "delete",
+      icon: Trash,
+      title: "",
+      description: "Êtes-vous sûr de vouloir supprimer cette donnée ?",
+      cancelText: "Annuler",
+      actionText: "Supprimer",
+      onOk: () => { return true },
+      onCancel: () => { return false },
+    }
+  },
   onAction,      // Callback function: (type, row) => void
-  variant = "blue",
-  pageSize = 5
+  variant = "slate",
+  pageSize = 5,
+  isLoading = false
 }) => {
   const [currentPage, setCurrentPage] = React.useState(1);
 
   // Pagination Logic
-  const totalPages = Math.ceil(data.length / pageSize);
+  const totalPages = Math.ceil((data?.length || 0) / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
-  const currentData = data.slice(startIndex, startIndex + pageSize);
+  const currentData = Array.isArray(data) ? data.slice(startIndex, startIndex + pageSize) : [];
 
   // Color Variant Mapping
   const variants = {
     blue: "bg-blue-600 text-white",
     dark: "bg-slate-900 text-white",
     green: "bg-emerald-600 text-white",
+    slate: "bg-slate-900 text-white",
+    light: "bg-slate-100 text-slate-900",
+    outline: "bg-white border-b border-slate-200 text-slate-900",
   };
 
   return (
     <div className="space-y-4 max-w-90 overflow-auto">
-      <div className="rounded-md border overflow-hidden">
+      <div className="rounded-md border border-slate-200 overflow-hidden">
         <Table>
           <TableHeader className={variants[variant]}>
             <TableRow className="hover:bg-transparent border-none">
               {columns.map((col) => (
-                <TableHead key={col.header} className="text-white font-bold">
+                <TableHead key={col.header} className={cn("font-bold", variant === "slate" ? "text-white" : "text-slate-900")}>
                   {col.header}
                 </TableHead>
               ))}
-              {actions.length > 0 && <TableHead className="text-white font-bold text-right">Actions</TableHead>}
+              {actions.length > 0 && <TableHead className={cn("font-bold text-right", variant === "slate" ? "text-white" : "text-slate-900")}>Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentData.map((row, rowIndex) => {
-              const rowBackground = row.color
-                ? row.color
-                : "odd:bg-white even:bg-slate-50/50";
-              return (
-                <TableRow key={rowIndex} striped={row.color ? false : true} className={cn(rowBackground, "transition-colors hover:bg-muted/30")}>
-                  {columns.map((col) => (
-                    <TableCell key={col.accessor}>
-                      {row[col.accessor]}
-                      {typeof (row[col.accessor]) === "boolean" && (row[col.accessor] ? <BadgeCheck className="text-green-900" /> : <BadgeX className="text-red-900" />)}
-                    </TableCell>
-                  ))}
-                  {/* Dynamic Actions Cell */}
-                  {actions.length > 0 && (
-                    <TableCell className="text-right space-x-2">
-                      {actions.includes("view") && (
-                        <Tooltip >
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => onAction("view", row)}
-                              className="text-emerald-500 hover:underline text-sm font-medium"
-                            >
-                              {/* View */}
-                              <Eye className="w-4 h-4 mr-1 inline" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>détails</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {actions.includes("edit") && (
-                        <Tooltip >
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => onAction("edit", row)}
-                              className="text-blue-500 hover:underline text-sm font-medium"
-                            >
-                              {/* Edit */}
-                              <SquarePen className="w-4 h-4 mr-1 inline" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Modifier</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {actions.includes("imp") && (
-                        <Tooltip >
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => onAction("imp", row)}
-                              className="text-green-500 hover:underline text-sm font-medium"
-                            >
-                              {/* Imprimer */}
-                              <Printer className="w-4 h-4 mr-1 inline" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Imprimer</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      {actions.includes("delete") && (
-                        <Tooltip >
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => onAction("delete", row)}
-                              className="text-red-500 hover:underline text-sm font-medium"
-                            >
-                              {/* Delete */}
-                              <Trash className="w-4 h-4 mr-1 inline" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Supprimer</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </TableCell>
-                  )}
-                </TableRow>
-              )
-            })}
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + (actions.length > 0 ? 1 : 0)} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
+                    <p className="text-slate-500 font-medium italic">Chargement des données...</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : currentData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + (actions.length > 0 ? 1 : 0)} className="h-32 text-center">
+                  <p className="text-slate-500 font-medium italic">Aucune donnée trouvée</p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              currentData.map((row, rowIndex) => {
+                const rowBackground = row.color
+                  ? row.color
+                  : "odd:bg-white even:bg-slate-50/30";
+                return (
+                  <TableRow key={rowIndex} striped={row.color ? false : true} className={cn(rowBackground, "transition-colors hover:bg-slate-100/50")}>
+                    {columns.map((col) => (
+                      <TableCell key={col.accessor}>
+                        {row[col.accessor]}
+                        {typeof (row[col.accessor]) === "boolean" && (row[col.accessor] ? <BadgeCheck className="text-slate-900" /> : <BadgeX className="text-slate-400" />)}
+                      </TableCell>
+                    ))}
+                    {/* Dynamic Actions Cell */}
+                    {actions.length > 0 && (
+                      <TableCell className="text-right space-x-2">
+                        {actions.includes("view") && (
+                          <Tooltip >
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => onAction("view", row)}
+                                className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                              >
+                                {/* View */}
+                                <Eye className="w-4 h-4 mr-1 inline" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>détails</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {actions.includes("edit") && (
+                          <Tooltip >
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => onAction("edit", row)}
+                                className="text-blue-600 hover:text-blue-900 transition-colors"
+                              >
+                                {/* Edit */}
+                                <SquarePen className="w-4 h-4 mr-1 inline" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Modifier</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {actions.includes("imp") && (
+                          <Tooltip >
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => onAction("imp", row)}
+                                className="text-slate-600 hover:text-slate-900 transition-colors"
+                              >
+                                {/* Imprimer */}
+                                <Printer className="w-4 h-4 mr-1 inline" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Imprimer</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {actions.includes("delete") && (
+                          <Tooltip >
+                            <TooltipTrigger asChild>
+                              <AlertBox>
+                                <AlertBoxTrigger >
+                                  <button
+                                    onClick={() => onAction("delete", row)}
+                                    className="text-red-400 hover:text-red-600 transition-colors"
+                                  >
+                                    {/* Delete */}
+                                    <Trash className="w-4 h-4 mr-1 inline" />
+                                  </button>
+                                </AlertBoxTrigger>
+                                <AlertBoxContainer
+                                  type="delete"
+                                  title={actionsDetaille.delete.title}
+                                  description={actionsDetaille.delete.description}
+                                  cancelText={actionsDetaille.delete.cancelText}
+                                  actionText={actionsDetaille.delete.actionText}
+                                  onOk={() => actionsDetaille.delete.onOk(row)}
+                                  onCancel={() => actionsDetaille.delete.onCancel()}
+                                />
+                              </AlertBox>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Supprimer</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                )
+              })
+            )}
           </TableBody>
         </Table>
       </div>

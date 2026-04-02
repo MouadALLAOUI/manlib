@@ -17,17 +17,27 @@ const variants = {
         root: "bg-white border border-slate-200",
         trigger: "bg-white hover:bg-slate-50 text-slate-900 shadow-none",
         content: "bg-slate-50 text-slate-600",
-    }
+    },
+    slate: {
+        root: "bg-white shadow-sm border border-slate-200",
+        trigger: "bg-slate-900 hover:bg-black text-white shadow-slate-200",
+        content: "bg-white text-slate-700",
+    },
+    light: {
+        root: "bg-white border border-slate-100",
+        trigger: "bg-slate-100 hover:bg-slate-200 text-slate-900 shadow-none",
+        content: "bg-white text-slate-600",
+    },
 };
 
 export const AccordionComponent = ({
     AccordionItems = [],
     id = "default",
-    variant = "green",
+    variant = "slate",
     allowMultiple = false, // New: toggles single/multiple mode
     defaultValue,          // New: accepts a string (single) or array (multiple)
 }) => {
-    const selectedVariant = variants[variant] || variants.green;
+    const selectedVariant = variants[variant] || variants.slate;
 
     return (
         <Accordion.Root

@@ -1,0 +1,11 @@
+import api from '../axios';
+
+const destinationService = {
+  getAll: (params) => api.get('/destinations', { params }),
+  getById: (id) => api.get(`/destinations/${id}`),
+  create: (data) => api.post('/destinations', data),
+  update: (id, data) => api.put(`/destinations/${id}`, data),
+  delete: (id) => api.delete(`/destinations/${id}`),
+};
+
+export default destinationService;
