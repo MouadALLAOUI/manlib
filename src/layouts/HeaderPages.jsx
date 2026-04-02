@@ -18,10 +18,10 @@ const HeaderPages = ({ role }) => {
 
     return (
         <ProtectedRoute indexPath="/dash" role={role}>
-            <div className="min-h-screen flex flex-col">
+            <div className="min-h-screen flex flex-col bg-slate-50/50">
                 <HeaderComponent />
-                <div className="relative flex-1 m-5 mx-auto bg-white rounded-lg shadow-md p-5 min-w-[90%]">
-                    <div className="breadcrumb mb-5 p-2 w-full rounded-md bg-gray-200">
+                <div className="relative flex-1 m-5 mx-auto bg-white rounded-xl shadow-sm border border-slate-100 p-8 min-w-[95%]">
+                    <div className="breadcrumb mb-8 p-3 w-full rounded-lg bg-slate-100/50 border border-slate-200/50">
                         <Breadcrumb>
                             <BreadcrumbList>
                                 {/* Static Home Link */}

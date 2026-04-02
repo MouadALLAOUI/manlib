@@ -1,37 +1,43 @@
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import useAppStore from '../store/useAppStore';
 
 const instance = axios.create({
-    // Make sure this matches your Laravel server URL
-    baseURL: 'http://127.0.0.1:8000/api',
+    baseURL: process.env.REACT_APP_API_URL,
+    withCredentials: true,
+    withXSRFToken: true,
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
     }
 });
 
-// Interceptor to automatically add the token to every request
-instance.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
-
-// Interceptor to handle expired tokens (401 errors)
+// Interceptor to handle global errors
 instance.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response && error.response.status === 401) {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('user');
-            // Optional: redirect to login if token is invalid
-            // window.location.href = '/login'; 
+        console.error("Axios Interceptor Error:", error);
+        const { response } = error;
+        if (response) {
+            console.error("Error Response Data:", response.data);
+            switch (response.status) {
+                case 401:
+                    console.warn("401 Unauthorized detected. Logging out...");
+                    // Clear auth state and redirect to login
+                    useAppStore.getState().logout();
+                    window.location.href = '/login';
+                    break;
+                case 422:
+                    // Return the error object for form validation
+                    return Promise.reject(error);
+                case 500:
+                    // Show a generic server error toast
+                    toast.error('Server error. Please try again later.');
+                    break;
+                default:
+                    break;
+            }
         }
         return Promise.reject(error);
     }

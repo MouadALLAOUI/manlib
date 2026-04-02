@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../../../components/ui/button";
 import {
     CustomDataTable
@@ -14,8 +14,12 @@ import {
     DialogTrigger,
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
+import imprimeurService from "../../../api/services/imprimeurService";
+import toast from "react-hot-toast";
 
 function FournisseursDisponibles() {
+    const [imprimeurs, setImprimeurs] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const [raisonSocial, setRaisonSocial] = useState("");
     const [adresse, setAdresse] = useState("");
@@ -25,193 +29,184 @@ function FournisseursDisponibles() {
     const [nomAdjoint, setNomAdjoint] = useState("");
     const [emailAdjoint, setEmailAdjoint] = useState("");
     const [telAdjoint, setTelAdjoint] = useState("");
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const fields = { raisonSocial, adresse, nomDirecteur, emailDirecteur, telDirecteur, nomAdjoint, emailAdjoint, telAdjoint };
     const fieldsFunc = { setRaisonSocial, setAdresse, setNomDirecteur, setEmailDirecteur, setTelDirecteur, setNomAdjoint, setEmailAdjoint, setTelAdjoint };
 
-    const categories = [
-        {
-            id: 1,
-            social: "watanya",
-            adress: "marrakech",
-            nom_directeur: "abdellatif",
-            email_directeur: "iwatanya@gmail.com",
-            tel_directeur: "0661  165 264",
-            nom_adjoint: "nourdine",
-            email_adjoint: "0610 965 105",
-            tel_adjoint: "hhhh@gmail.com",
-        },
-        {
-            id: 2,
-            social: "BEST BM",
-            adress: "MArrakech Massira",
-            nom_directeur: "Abderrahim",
-            email_directeur: "adnanebaribi@gmail.com",
-            tel_directeur: "0668962669",
-            nom_adjoint: "nourdine",
-            email_adjoint: "0610 965 105",
-            tel_adjoint: "hhhh@gmail.com",
-        },
-    ];
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const response = await imprimeurService.getAll();
+            setImprimeurs(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching fournisseurs:", error);
+            toast.error("Erreur lors du chargement des fournisseurs");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-    const handleAction = (type, row) => {
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const handleAction = async (type, row) => {
         if (type === "delete") {
-            console.log("Deleting ID:", row.id);
+            if (window.confirm("Supprimer ce fournisseur ?")) {
+                try {
+                    await imprimeurService.delete(row.id);
+                    toast.success("Fournisseur supprimé");
+                    fetchData();
+                } catch (error) {
+                    toast.error("Erreur de suppression");
+                }
+            }
         } else if (type === "edit") {
             console.log("Editing row:", row);
         }
     };
 
+    const handleSubmit = async () => {
+        try {
+            const data = {
+                raison_sociale: raisonSocial,
+                adresse,
+                directeur_nom: nomDirecteur,
+                directeur_email: emailDirecteur,
+                directeur_tel: telDirecteur,
+                adjoint_nom: nomAdjoint,
+                adjoint_email: emailAdjoint,
+                adjoint_tel: telAdjoint
+            };
+            await imprimeurService.create(data);
+            toast.success("Fournisseur ajouté avec succès");
+            setIsDialogOpen(false);
+            resetForm();
+            fetchData();
+        } catch (error) {
+            toast.error("Erreur lors de l'ajout du fournisseur");
+        }
+    };
+
+    const resetForm = () => {
+        setRaisonSocial("");
+        setAdresse("");
+        setNomDirecteur("");
+        setEmailDirecteur("");
+        setTelDirecteur("");
+        setNomAdjoint("");
+        setEmailAdjoint("");
+        setTelAdjoint("");
+    };
+
     return (
-        <div>
-            <div className="flex items-center justify-between mb-4">
-                <h1>Liste des Fournisseurs</h1>
-                <FournisseurDialog fields={fields} fieldsFunc={fieldsFunc} />
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Liste des Fournisseurs</h1>
+                <FournisseurDialog
+                    fields={fields}
+                    fieldsFunc={fieldsFunc}
+                    onSubmit={handleSubmit}
+                    open={isDialogOpen}
+                    onOpenChange={setIsDialogOpen}
+                />
             </div>
 
-            <CustomDataTable
-                data={categories}
-                variant="green"
-                pageSize={4}
-                actions={["view", "edit", "delete"]}
-                onAction={handleAction}
-                columns={[
-                    { header: "Raison Social", accessor: "social" }
-                ]}
-            />
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <CustomDataTable
+                    data={imprimeurs}
+                    variant="slate"
+                    pageSize={10}
+                    actions={["view", "edit", "delete"]}
+                    onAction={handleAction}
+                    isLoading={isLoading}
+                    columns={[
+                        { header: "Raison Social", accessor: "raison_sociale" },
+                        { header: "Adresse", accessor: "adresse" },
+                        { header: "Email Directeur", accessor: "directeur_email" },
+                        { header: "Téléphone", accessor: "directeur_tel" }
+                    ]}
+                />
+            </div>
         </div>
     )
 }
 
-const FournisseurDialog = ({ fields, fieldsFunc, onSubmit = () => { }, operation = "add", values = {} }) => {
+const FournisseurDialog = ({ fields, fieldsFunc, onSubmit = () => { }, open, onOpenChange }) => {
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
-                <Button className="text-sm bg-emerald-700 text-white">Ajouter un fournisseur</Button>
+                <Button className="bg-slate-900 hover:bg-black text-white px-6 h-11 rounded-xl font-bold shadow-lg shadow-slate-100 transition-all hover:scale-[1.02]">
+                    + Ajouter un fournisseur
+                </Button>
             </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle className="text-center mb-5">Ajouter un fournisseur</DialogTitle>
-                    <DialogDescription className="space-y-4" asChild>
-                        <div className="grid grid-cols-2 gap-2">
-
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="social" className="text-slate-500 font-medium text-sm">Raison social :</label>
-                                <Input
-                                    type="text"
-                                    id="social"
-                                    value={fields.raisonSocial}
-                                    onChange={(e) => fieldsFunc.setRaisonSocial(e.target.value)}
-                                    placeholder="saisir la raison sociale"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="adresse" className="text-slate-500 font-medium text-sm">Adresse :</label>
-                                <Input
-                                    type="text"
-                                    id="adresse"
-                                    value={fields.adresse}
-                                    onChange={(e) => fieldsFunc.setAdresse(e.target.value)}
-                                    placeholder="saisir l'adresse"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-
-                            <div className="flex flex-col content-center justify-center col-span-2">
-                                <p className="text-slate-500 font-medium text-md">Directeur :</p>
-                            </div>
-
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="nom_directeur" className="text-slate-500 font-medium text-sm">Nom du directeur :</label>
-                                <Input
-                                    type="text"
-                                    id="nom_directeur"
-                                    value={fields.nom_directeur}
-                                    onChange={(e) => fieldsFunc.setNomDirecteur(e.target.value)}
-                                    placeholder="saisir le nom du directeur"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-
-
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="email_directeur" className="text-slate-500 font-medium text-sm">Email du directeur :</label>
-                                <Input
-                                    type="text"
-                                    id="email_directeur"
-                                    value={fields.email_directeur}
-                                    onChange={(e) => fieldsFunc.setEmailDirecteur(e.target.value)}
-                                    placeholder="saisir l'email du directeur"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="tel_directeur" className="text-slate-500 font-medium text-sm">Téléphone du directeur :</label>
-                                <Input
-                                    type="text"
-                                    id="tel_directeur"
-                                    value={fields.tel_directeur}
-                                    onChange={(e) => fieldsFunc.setTelDirecteur(e.target.value)}
-                                    placeholder="saisir le téléphone du directeur"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-
-                            <div className="flex flex-col content-center justify-center col-span-2">
-                                <p className="text-slate-500 font-medium text-md">Ad-Joint :</p>
-                            </div>
-
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="nom_adjoint" className="text-slate-500 font-medium text-sm">Nom de l'adjoint :</label>
-                                <Input
-                                    type="text"
-                                    id="nom_adjoint"
-                                    value={fields.nom_adjoint}
-                                    onChange={(e) => fieldsFunc.setNomAdjoint(e.target.value)}
-                                    placeholder="saisir le nom de l'adjoint"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="email_adjoint" className="text-slate-500 font-medium text-sm">Email de l'adjoint :</label>
-                                <Input
-                                    type="text"
-                                    id="email_adjoint"
-                                    value={fields.email_adjoint}
-                                    onChange={(e) => fieldsFunc.setEmailAdjoint(e.target.value)}
-                                    placeholder="saisir l'email de l'adjoint"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-                            <div className="flex flex-col content-center justify-center">
-                                <label htmlFor="tel_adjoint" className="text-slate-500 font-medium text-sm">Téléphone de l'adjoint :</label>
-                                <Input
-                                    type="text"
-                                    id="tel_adjoint"
-                                    value={fields.tel_adjoint}
-                                    onChange={(e) => fieldsFunc.setTelAdjoint(e.target.value)}
-                                    placeholder="saisir le téléphone de l'adjoint"
-                                    className="h-12 border-slate-200 focus:ring-primary"
-                                />
-                            </div>
-
-
-                        </div>
-                    </DialogDescription>
+            <DialogContent className="sm:max-w-[800px] rounded-2xl border-none shadow-2xl p-0 overflow-hidden">
+                <DialogHeader className="bg-slate-900 p-8 text-white">
+                    <DialogTitle className="text-2xl font-black tracking-tight uppercase">Nouveau Fournisseur</DialogTitle>
+                    <p className="text-slate-400 text-sm mt-1">Enregistrer un nouveau partenaire fournisseur dans le système.</p>
                 </DialogHeader>
-                <DialogFooter>
+
+                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    {/* Basic Info */}
+                    <div className="space-y-2 col-span-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Raison Sociale</label>
+                        <Input
+                            placeholder="Ex: SARL Librairie Centrale"
+                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
+                            value={fields.raisonSocial}
+                            onChange={(e) => fieldsFunc.setRaisonSocial(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Adresse Complète</label>
+                        <Input
+                            placeholder="Adresse du siège..."
+                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
+                            value={fields.adresse}
+                            onChange={(e) => fieldsFunc.setAdresse(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Directeur Info */}
+                    <div className="col-span-2 mt-4">
+                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2 mb-4">Informations Directeur</h3>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Nom Directeur</label>
+                        <Input
+                            placeholder="Nom et Prénom"
+                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
+                            value={fields.nomDirecteur}
+                            onChange={(e) => fieldsFunc.setNomDirecteur(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Email</label>
+                        <Input
+                            type="email"
+                            placeholder="directeur@email.com"
+                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
+                            value={fields.emailDirecteur}
+                            onChange={(e) => fieldsFunc.setEmailDirecteur(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100 flex gap-3">
                     <DialogClose asChild>
-                        <div>
-                            <Button className="bg-emerald-900 text-white" variant="outline" onClick={onSubmit}>Ajouter</Button>
-                            <Button className="bg-red-700 text-white" variant="outline">Fermer</Button>
-                        </div>
+                        <Button variant="outline" className="h-12 px-8 rounded-xl font-bold text-slate-600 border-slate-200">Annuler</Button>
                     </DialogClose>
+                    <Button
+                        onClick={onSubmit}
+                        className="h-12 px-8 rounded-xl font-bold bg-slate-900 hover:bg-black text-white shadow-lg shadow-slate-200 transition-all"
+                    >
+                        Enregistrer Fournisseur
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
-}
+};
 
 export default FournisseursDisponibles;
