@@ -1,8 +1,5 @@
 import { Button } from "../../../components/ui/button";
 import {
-    CustomDataTable
-} from "../../../components/ui/table";
-import {
     Dialog,
     DialogClose,
     DialogContent,
@@ -17,6 +14,7 @@ import { useState, useEffect } from "react";
 import categoryService from "../../../api/services/categoryService";
 import toast from "react-hot-toast";
 import logger from "../../../lib/logger";
+import { MyTable } from "../../../components/ui/myTable";
 
 function CategoriesPage() {
     const [categories, setCategories] = useState([]);
@@ -129,7 +127,7 @@ function CategoriesPage() {
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <CustomDataTable
+                <MyTable
                     data={categories}
                     variant="slate"
                     pageSize={5}

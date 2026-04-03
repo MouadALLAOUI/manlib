@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "../../../components/ui/button";
 import {
-    CustomDataTable
-} from "../../../components/ui/table";
-import {
     Dialog,
     DialogClose,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -16,6 +12,7 @@ import {
 import { Input } from "../../../components/ui/input";
 import imprimeurService from "../../../api/services/imprimeurService";
 import toast from "react-hot-toast";
+import { MyTable } from "../../../components/ui/myTable";
 
 function FournisseursDisponibles() {
     const [imprimeurs, setImprimeurs] = useState([]);
@@ -53,15 +50,16 @@ function FournisseursDisponibles() {
 
     const handleAction = async (type, row) => {
         if (type === "delete") {
-            if (window.confirm("Supprimer ce fournisseur ?")) {
-                try {
-                    await imprimeurService.delete(row.id);
-                    toast.success("Fournisseur supprimé");
-                    fetchData();
-                } catch (error) {
-                    toast.error("Erreur de suppression");
-                }
-            }
+            // if (window.confirm("Supprimer ce fournisseur ?")) {
+            //     try {
+            //         await imprimeurService.delete(row.id);
+            //         toast.success("Fournisseur supprimé");
+            //         fetchData();
+            //     } catch (error) {
+            //         toast.error("Erreur de suppression");
+            //     }
+            // }
+
         } else if (type === "edit") {
             console.log("Editing row:", row);
         }
@@ -114,11 +112,11 @@ function FournisseursDisponibles() {
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <CustomDataTable
+                <MyTable
                     data={imprimeurs}
-                    variant="slate"
+                    variant="green"
                     pageSize={10}
-                    actions={["view", "edit", "delete"]}
+                    actions={["view", "edit", "delete", "imp"]}
                     onAction={handleAction}
                     isLoading={isLoading}
                     columns={[

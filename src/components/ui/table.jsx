@@ -118,6 +118,7 @@ const CustomDataTable = ({
   return (
     <div className="space-y-4 max-w-90 overflow-auto">
       <div className="rounded-md border border-slate-200 overflow-hidden">
+        <h1>Switch to Mytable is for the final product</h1>
         <Table>
           <TableHeader className={variants[variant]}>
             <TableRow className="hover:bg-transparent border-none">
@@ -147,11 +148,20 @@ const CustomDataTable = ({
               </TableRow>
             ) : (
               currentData.map((row, rowIndex) => {
-                const rowBackground = row.color
-                  ? row.color
-                  : "odd:bg-white even:bg-slate-50/30";
+                const ignoreColor = ["#FFFFFF", "#FFF", "#000000", "#000", "transparent"];
+                const rowColor = row.color || row["color_code"];
+                let iStyle = false
+                if (rowColor && !ignoreColor.includes(rowColor.toUpperCase())) {
+                  iStyle = true
+                } else {
+                  iStyle = false
+                }
+                const rowClasses = cn(
+                  `odd:bg-white even:bg-slate-50/30`,
+                  "transition-colors hover:bg-slate-100/50"
+                );
                 return (
-                  <TableRow key={rowIndex} striped={row.color ? false : true} className={cn(rowBackground, "transition-colors hover:bg-slate-100/50")}>
+                  <TableRow key={rowIndex} striped={iStyle ? false : true} style={iStyle ? { backgroundColor: rowColor } : {}} className={cn(rowClasses, "transition-colors hover:bg-slate-100/50")}>
                     {columns.map((col) => (
                       <TableCell key={col.accessor}>
                         {row[col.accessor]}
@@ -213,7 +223,7 @@ const CustomDataTable = ({
                           <Tooltip >
                             <TooltipTrigger asChild>
                               <AlertBox>
-                                <AlertBoxTrigger >
+                                <AlertBoxTrigger asChild>
                                   <button
                                     onClick={() => onAction("delete", row)}
                                     className="text-red-400 hover:text-red-600 transition-colors"
