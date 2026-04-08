@@ -4,7 +4,7 @@ import { cn } from "../../lib/utils"
 import { Button } from "./button"
 import { BadgeCheck, BadgeX, Eye, Printer, SquareArrowLeft, SquareArrowRight, SquarePen, Trash } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
-import { AlertBox, AlertBoxTrigger, AlertBoxContent, AlertBoxContainer } from "./AlertBox"
+import { AlertBox, AlertBoxTrigger, AlertBoxContainer } from "./AlertBox"
 
 const Table = React.forwardRef(({ className, ...props }, ref) => (
   <div className="relative w-full overflow-auto">

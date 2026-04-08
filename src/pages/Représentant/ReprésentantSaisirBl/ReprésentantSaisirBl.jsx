@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../../components/ui/button";
-import { CustomDataTable } from "../../../components/ui/table";
 import {
     Dialog,
     DialogClose,
@@ -13,235 +12,372 @@ import {
 import { Input } from "../../../components/ui/input";
 import { AccordionComponent } from "../../../components/ui/accordion";
 import { CustomSelectComponent } from "../../../components/ui/select";
-
-const BOOKS_BY_LEVEL = {
-    "Primaire": [
-        { id: "p1", label: "Informatique et Robotique au primaire N1" },
-        { id: "p2", label: "Informatique et Robotique au primaire N2" }
-    ],
-    "collège": [
-        { id: "c1", label: "Informatique, Robotique et IA au collège N1" },
-        { id: "c2", label: "Développeur DIGITAL" }
-    ],
-    "lycée": [{ id: "l1", label: "Science Ingénieur N1" }],
-    "préscolaire": [{ id: "pre1", label: "Eveil Tech" }],
-    "Robotos": [{ id: "r1", label: "Kit Arduino Starer" }]
-};
+import { MyTable } from "../../../components/ui/myTable";
+import logger from "../../../lib/logger";
+import bLivraisonService from "../../../api/services/bLivraisonService";
+import toast from "react-hot-toast";
+import livreService from "../../../api/services/livreService";
+import categoryService from "../../../api/services/categoryService";
+import UniversalDialog from "../../../components/template/dialog/UniversalDialog";
+import representantService from "../../../api/services/representantService";
+import bLivraisonItemService from "../../../api/services/bLivraisonItemService";
+import FormInputRow from "../../../components/ui/FormInputRaw";
+import { numberRound } from "../../../lib/utilities";
 
 function ReprésentantSaisirBl() {
+    const [blData, setBlData] = useState([]);
+    const [livres, setLivres] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [representants, setRepresentants] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
     const [formData, setFormData] = useState({
-        fournisseur: "",
-        date: "",
-        n_bl: "",
-        details: [] // This will store items with qte > 0
+        rep_id: "",
+        bl_number: "",
+        date_emission: "",
+        mode_envoi: "",
+        type: "",
+        statut_recu: false,
+        statut_vu: false,
+        status: "",
+        details: []
     });
 
-    const updateDetail = (label, qte) => {
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [itemQte, setItemQte] = useState(0);
+
+    const actionsDetaille = {
+        delete: {
+            title: "Supprimer",
+            description: "Êtes-vous sûr de vouloir supprimer ce fornisseur?",
+            actionText: "Supprimer",
+            cancelText: "Annuler",
+            type: "delete",
+            onOk: async (row) => {
+                try {
+                    await bLivraisonItemService.delete(row.id);
+                    toast.success("Livre supprimé du BL");
+                    setSelectedBlItems(prev => ({
+                        ...prev,
+                        items: prev.items.filter(i => i.id !== row.id)
+                    }));
+                    fetchData();
+                } catch (error) {
+                    logger("Error deleting b_livraison:", error);
+                    toast.error("Erreur lors de la suppression");
+                }
+            },
+            onCancel: () => toast.error("element pas supprimé"),
+        },
+        edit: {
+            title: "modifier",
+            description: <FormInputRow
+                type="number"
+                min="1"
+                value={itemQte}
+                step="1"
+                onChange={(val) => setItemQte(numberRound(val))} />,
+            actionText: "modifier",
+            cancelText: "Annuler",
+            type: "edit",
+            onOk: async (row) => {
+                setItemQte(Number(row.quantite))
+                if (itemQte && !isNaN(itemQte)) {
+                    try {
+                        await bLivraisonItemService.update(row.id, { quantite: itemQte });
+                        toast.success("Quantité mise à jour");
+                        fetchData();
+                        setSelectedBlItems(prev => ({
+                            ...prev,
+                            items: prev.items.map(i => i.id === row.id ? { ...i, quantite: itemQte } : i)
+                        }));
+                        setItemQte(0)
+                    } catch (error) {
+                        toast.error("Erreur lors de la mise à jour");
+                    }
+                }
+            },
+            onCancel: () => {
+                toast.error("element pas modifier")
+                setItemQte(0)
+            },
+        }
+    };
+
+    const [selectedBlItems, setSelectedBlItems] = useState(null);
+
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const [blRes, livreRes, catRes, repRes] = await Promise.all([
+                bLivraisonService.getAll(),
+                livreService.getAll(),
+                categoryService.getAll(),
+                representantService.getAll()
+            ]);
+            console.log(blRes.data.data || blRes.data)
+            setBlData(blRes.data.data || blRes.data);
+            setLivres(livreRes.data.data || livreRes.data);
+            setCategories(catRes.data.data || catRes.data);
+            setRepresentants(repRes.data.data || repRes.data);
+        } catch (error) {
+            toast.error("Erreur lors du chargement des données");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    // logger({ blData, livres, categories, representants })
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const updateDetail = (livreId, label, qte) => {
         setFormData(prev => {
-            const filtered = prev.details.filter(item => item.label !== label);
+            const filtered = prev.details.filter(item => item.livre_id !== livreId);
             if (parseInt(qte) > 0) {
-                return { ...prev, details: [...filtered, { label, qte }] };
+                return { ...prev, details: [...filtered, { livre_id: livreId, label, qte }] };
             }
             return { ...prev, details: filtered };
         });
     };
 
-    const BLs = [
-        {
-            id: 1,
-            fournisseur: "watanya",
-            representant: "John Doe",
-            date: "11/02/2026",
-            type: "Type 1",
-            n_bl: "1",
-            mode_envoi: "Envoi 1",
-            is_vu: true,
-            is_recu: false,
-            details: [
-                { label: "Informatique et Robotique au primaire N 1", qte: "5", color: "bg-blue-100 text-green-700" },
-                { label: "Informatique et Robotique au primaire N 2", qte: "3", color: "bg-amber-100 text-amber-700" },
-            ],
-        },
-    ];
+    const handleAction = async (type, row) => {
+        if (type === "view") {
+            setIsLoading(true)
+            try {
+                const res = await bLivraisonItemService.getById(row.id)
+                const items = res.data.data || res.data
 
-    const handleAction = (type, row) => {
-        if (type === "delete") {
-            console.log("Deleting ID:", row.id);
-        } else if (type === "edit") {
-            console.log("Editing row:", row);
+                setSelectedBlItems({
+                    representant: row.representant?.nom,
+                    number: row.bl_number,
+                    date: row.date_emission,
+                    items: items
+                });
+            } catch (error) {
+                console.log(error)
+                toast.error("Erreur lors du chargement des sous données");
+            } finally {
+                setIsLoading(false)
+                setTimeout(() => {
+                    document.getElementById('bl-details-section')?.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+            }
         }
     };
+
+    const handleItemAction = async (type, itemRow) => {
+        if (type === "edit") {
+            setItemQte(Number(itemRow.quantite))
+        }
+    };
+
+    const handleSubmit = async () => {
+        try {
+            await bLivraisonService.create(formData);
+            toast.success("BL enregistré avec succès");
+            setIsDialogOpen(false);
+            resetForm();
+            fetchData();
+        } catch (error) {
+            toast.error("Erreur lors de l'enregistrement du BL");
+        }
+    };
+    const resetForm = () => {
+        setFormData({
+            rep_id: "",
+            bl_number: "",
+            date_emission: "",
+            mode_envoi: "",
+            type: "",
+            statut_recu: false,
+            statut_vu: false,
+            status: "",
+            details: []
+        });
+    }
+
+    const BOOKS_BY_LEVEL = {};
+    categories.forEach(cat => {
+        BOOKS_BY_LEVEL[cat.libelle] = [];
+        livres.forEach(liv => {
+            if (liv.category && liv.category.libelle === cat.libelle) {
+                BOOKS_BY_LEVEL[cat.libelle].push({
+                    label: liv.titre,
+                    value: liv.id
+                });
+            }
+        });
+    });
+
+    const columns = [
+        { header: "Representant", accessor: "representant.nom" },
+        { header: "Date", accessor: "date_emission", type: "date" },
+        { header: "Type", accessor: "type" },
+        { header: "N° BL", accessor: "bl_number" },
+        { header: "Mode d'envoi", accessor: "mode_envoi" },
+        { header: "Vu", accessor: "statut_vu", type: "bool", onClick: (row) => handleVu(row) },
+        { header: "Reçu", accessor: "statut_recu", type: "bool", onClick: (row) => handleRecu(row) },
+    ]
+    const handleVu = async (row) => {
+        try {
+            const newStatus = !row.statut_vu;
+            await bLivraisonService.update(row.id, { statut_vu: newStatus });
+            toast.success(newStatus ? "Marqué comme vu" : "Marqué comme non vu");
+            fetchData(); // Refresh the table
+        } catch (error) {
+            toast.error("Erreur lors de la modification du statut");
+        }
+    }
+    const handleRecu = async (row) => {
+        try {
+            const newStatus = !row.statut_recu;
+            await bLivraisonService.update(row.id, { statut_recu: newStatus });
+            toast.success(newStatus ? "Marqué comme Recu" : "Marqué comme non Recu");
+            fetchData(); // Refresh the table
+        } catch (error) {
+            toast.error("Erreur lors de la modification du statut");
+        }
+    }
+
+    const schema = useMemo(() => [
+        {
+            name: "rep_id",
+            label: "Représentant",
+            placeholder: "Choisir un représentant",
+            inputType: "select",
+            required: true,
+            items: representants.map(r => ({ label: r.nom, value: r.id })),
+            value: formData.rep_id,
+            onChange: (v) => setFormData(prev => ({ ...prev, rep_id: v }))
+        },
+        {
+            name: "date_emission",
+            label: "Date d'émission",
+            type: "date",
+            required: true,
+            value: formData.date_emission,
+            onChange: (v) => setFormData(prev => ({ ...prev, date_emission: v }))
+        },
+        {
+            name: "type",
+            label: "Type",
+            placeholder: "Type de BL",
+            inputType: "select",
+            items: [
+                { label: "Livre", value: "Livre" },
+                { label: "Spécimen", value: "Specimen" },
+                { label: "Retour", value: "Retour" },
+                { label: "Pédagogie", value: "Pedagogie" },
+            ],
+            value: formData.type,
+            onChange: (v) => setFormData(prev => ({ ...prev, type: v }))
+        },
+        {
+            name: "bl_number",
+            label: "N° BL",
+            placeholder: "Ex: BL-123456",
+            required: true,
+            value: formData.bl_number,
+            onChange: (v) => setFormData(prev => ({ ...prev, bl_number: v }))
+        },
+        {
+            name: "mode_envoi",
+            label: "Mode d'envoi",
+            placeholder: "Ex: Transporteur, Main propre",
+            value: formData.mode_envoi,
+            onChange: (v) => setFormData(prev => ({ ...prev, mode_envoi: v }))
+        },
+        {
+            type: "section",
+            label: "Sélection des Articles"
+        },
+        {
+            type: "book_accordion",
+            data: BOOKS_BY_LEVEL, // This is your categories/livres grouped object
+            details: formData.details,
+            onUpdateDetail: updateDetail
+        },
+        {
+            type: "summary",
+            data: formData.details
+        }
+    ], [formData, representants, BOOKS_BY_LEVEL]);
 
     return (
         <div className="p-4">
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-xl font-bold">Liste des BLs (Représentant)</h1>
-                <BLDialog formData={formData} setFormData={setFormData} onUpdateDetail={updateDetail} />
+                {/* <BLDialog formData={formData} setFormData={setFormData} onUpdateDetail={updateDetail} /> */}
+                <UniversalDialog
+                    schema={schema}
+                    config={{ title: "Ajouter un BL (MSM-MEDIAS -- Représentant)" }}
+                    trigger={
+                        <Button className="bg-slate-900 hover:bg-black text-white px-6 h-11 rounded-xl font-bold shadow-lg shadow-slate-100 transition-all hover:scale-[1.02]">
+                            + Saisir un nouveau BL
+                        </Button>
+                    }
+                    onSubmit={handleSubmit}
+                    grid={3}
+                    open={isDialogOpen}
+                    onOpenChange={setIsDialogOpen}
+                />
+
             </div>
 
-            <CustomDataTable
-                data={BLs}
-                variant="green"
+            <MyTable
+                data={blData}
+                variant="blue"
                 pageSize={4}
-                actions={["view", "edit", "delete", "imp"]}
+                actions={["view", "imp"]}
                 onAction={handleAction}
-                columns={[
-                    { header: "Représentant", accessor: "representant" },
-                    { header: "Date", accessor: "date" },
-                    { header: "Type", accessor: "type" },
-                    { header: "BL N°", accessor: "n_bl" },
-                    { header: "Mode envoi", accessor: "mode_envoi" },
-                    { header: "Vu", accessor: "is_vu" },
-                    { header: "Reçu", accessor: "is_recu" },
-                ]}
+                columns={columns}
+
+                enableSearch enableSorting
             />
-        </div>
-    );
-}
+            {selectedBlItems && (
+                <div id="bl-details-section" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 className="text-lg font-black text-slate-900 uppercase">
+                                Détails du BL: {selectedBlItems.number}
+                            </h2>
+                            <p className="text-sm text-slate-500">
+                                {selectedBlItems.representant} — {selectedBlItems.date}
+                            </p>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedBlItems(null)}
+                            className="text-slate-400 hover:text-slate-900"
+                        >
+                            Fermer les détails
+                        </Button>
+                    </div>
 
-const BLDialog = ({ formData, setFormData, onUpdateDetail }) => {
-
-    const accordionLevels = Object.keys(BOOKS_BY_LEVEL).map(level => ({
-        title: level.toUpperCase(),
-        content: (
-            <div className="p-2 space-y-2 bg-white">
-                {BOOKS_BY_LEVEL[level].map((book) => (
-                    <BookInput
-                        key={book.id}
-                        label={book.label}
-                        onChange={(val) => onUpdateDetail(book.label, val)}
-                        currentValue={formData.details.find(d => d.label === book.label)?.qte || ""}
-                    />
-                ))}
-            </div>
-        )
-    }));
-    const [priority, setPriority] = useState("");
-    const [types, setTypes] = useState("");
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button className="bg-emerald-700 text-white">Ajouter un BL</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="text-center mb-5 text-emerald-700">Ajouter un BL (MSM-MEDIAS -- Représentant)</DialogTitle>
-                </DialogHeader>
-
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="flex flex-col">
-                        <label className="bg-sky-400 text-white text-center py-1 text-xs">Représentant</label>
-                        <CustomSelectComponent
-                            items={[
-                                { label: "Adnane Baribi", value: "adnane" },
-                                { label: "Mouad Allaoui", value: "mouad" }
+                    <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                        <MyTable
+                            data={selectedBlItems.items}
+                            variant="slate"
+                            pageSize={5}
+                            actions={["edit", "delete"]}
+                            onAction={(type, itemRow) => handleItemAction(type, itemRow)}
+                            columns={[
+                                { header: "Livre", accessor: "livre.titre" },
+                                { header: "Livre Code", accessor: "livre.code" },
+                                { header: "Quantité Livrée", accessor: "quantite" }
                             ]}
-                            value={priority}
-                            onValueChange={(val) => setPriority(val)}
-                            allowEmpty={true}
-                            emptyLabel="Représentant"
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="bg-sky-400 text-white text-center py-1 text-xs">Date</label>
-                        <Input
-                            type="date"
-                            className="rounded-none border-sky-200"
-                            value={formData.date}
-                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="bg-sky-400 text-white text-center py-1 text-xs">Type</label>
-                        <CustomSelectComponent
-                            items={[
-                                { label: "Livre", value: "livre" },
-                                { label: "Spécimen", value: "specimen" },
-                                { label: "Retour", value: "retour" },
-                                { label: "Rejeté", value: "rejete" },
-                                { label: "Pédagogie", value: "pedagogie" },
-                            ]}
-                            value={types}
-                            onValueChange={(val) => setTypes(val)}
-                            allowEmpty={true}
-                            emptyLabel="Type"
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="bg-sky-400 text-white text-center py-1 text-xs">BL N°</label>
-                        <Input
-                            className="rounded-none border-sky-200"
-                            value={formData.n_bl}
-                            id="n_bl"
-                            placeholder="saisir le numéro du BL"
-                            onChange={(e) => setFormData({ ...formData, n_bl: e.target.value })}
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="bg-sky-400 text-white text-center py-1 text-xs">Mode d'envoi</label>
-                        <Input
-                            className="rounded-none border-sky-200"
-                            value={formData.mode_envoi}
-                            id="mode_envoi"
-                            placeholder="Mode d'envoi"
-                            onChange={(e) => setFormData({ ...formData, mode_envoi: e.target.value })}
+                            actionsDetaille={actionsDetaille}
+                            enableSearch enableSorting
                         />
                     </div>
                 </div>
-
-                <AccordionComponent
-                    variant="outline"
-                    AccordionItems={accordionLevels}
-                    id="levels"
-                    allowMultiple={true}
-                />
-
-                {/* Summary Table (Yellow table from image) */}
-                {formData.details.length > 0 && (
-                    <div className="mt-10 border border-amber-200 max-w-md mx-auto">
-                        <div className="grid grid-cols-4 bg-amber-400 font-bold text-xs p-2">
-                            <div className="col-span-3">Titre</div>
-                            <div className="text-center">Qté</div>
-                        </div>
-                        {formData.details.map((item, i) => (
-                            <div key={i} className="grid grid-cols-4 text-xs p-2 border-t border-amber-100 bg-amber-50">
-                                <div className="col-span-3">{item.label}</div>
-                                <div className="text-center font-bold">{item.qte}</div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                <DialogFooter className="mt-6">
-                    <DialogClose asChild>
-                        <div className="flex gap-2 justify-center w-full">
-                            <Button className="bg-sky-500 text-white px-10">Valider</Button>
-                        </div>
-                    </DialogClose>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-};
-
-const BookInput = ({ label, onChange, currentValue }) => {
-    // Determine if highlighted (green in your image)
-    const isSelected = parseInt(currentValue) > 0;
-
-    return (
-        <div className="flex items-center gap-1">
-            <div className={`flex-1 border p-2 text-sm transition-colors ${isSelected ? 'bg-green-700 text-white' : 'bg-white text-black'}`}>
-                {label}
-            </div>
-            <Input
-                type="number"
-                className="w-20 rounded-none border-slate-400 text-right"
-                placeholder="0"
-                value={currentValue}
-                onChange={(e) => onChange(e.target.value)}
-            />
+            )}
         </div>
     );
-};
+}
 
 export default ReprésentantSaisirBl;

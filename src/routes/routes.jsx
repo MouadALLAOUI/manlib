@@ -41,6 +41,8 @@ import InvitationPage from "../pages/Emailing/Invitation/InvitationPage";
 import SaisonTravailPage from "../pages/Réglages/SaisonTravail/SaisonTravailPage";
 import PiedDeFacturePage from "../pages/Réglages/PiedDeFacture/PiedDeFacturePage";
 import ModelesCahierTextePage from "../pages/Réglages/ModelesCahierTexte/ModelesCahierTextePage";
+import RobotsPage from "../pages/Robots/RobotsPage";
+import UnauthorizedPage from "../pages/UnauthorizedPage";
 
 import { ProtectedRoute } from "./protectedRoute";
 import useAppStore from "../store/useAppStore";
@@ -55,7 +57,7 @@ export const AppRoutes = () => {
             <Route
                 path="/dash"
                 element={
-                    <ProtectedRoute >
+                    <ProtectedRoute role="admin">
                         <HeaderPages role="admin" />
                     </ProtectedRoute>
                 }
@@ -124,10 +126,22 @@ export const AppRoutes = () => {
                     <Route index element={<Navigate to="Season_travail" replace />} />
                 </Route>
 
+                <Route path="robots" element={<RobotsPage />} />
+
                 <Route index element={<Navigate to="home" replace />} />
             </Route>
 
-            <Route path="/login" element={user ? <Navigate to="/dash/home" replace /> : <LoginPage />} />
+            <Route
+                path="/login"
+                element={
+                    user ? (
+                        <Navigate to="/dash/home" replace />
+                    ) : (
+                        <LoginPage />
+                    )
+                }
+            />
+            <Route path="/unauthorized" element={<UnauthorizedPage />} />
             <Route path="/logout" element={<Logout />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

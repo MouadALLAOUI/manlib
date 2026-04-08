@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import FormInputRow from "../../../components/ui/FormInputRaw";
 import { Send, Mail, Paperclip } from "lucide-react";
@@ -23,6 +23,10 @@ const SimpleEmailPage = () => {
       </div>
 
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+        <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-sm">
+          <div className="font-bold">Backend missing</div>
+          <div>Endpoint requis (exemple): POST /api/emails/send</div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormInputRow
             label="À (Destinataire)"
@@ -47,27 +51,12 @@ const SimpleEmailPage = () => {
         />
 
         <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-          <Button variant="outline" className="flex items-center gap-2">
+          <Button disabled variant="outline" className="flex items-center gap-2">
             <Paperclip size={18} /> Joindre un fichier
           </Button>
-          <Button className="bg-blue-600 text-white flex items-center gap-2 px-8 h-12 font-bold hover:bg-blue-700 transition-all shadow-md">
+          <Button disabled className="bg-blue-600 text-white flex items-center gap-2 px-8 h-12 font-bold hover:bg-blue-700 transition-all shadow-md">
             <Send size={18} /> Envoyer le message
           </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
-          <p className="text-xs font-bold text-slate-400 uppercase">Emails Envoyés Aujourd'hui</p>
-          <p className="text-xl font-black text-slate-700">12</p>
-        </div>
-        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
-          <p className="text-xs font-bold text-slate-400 uppercase">Taux de Délivrance</p>
-          <p className="text-xl font-black text-emerald-600">99.8%</p>
-        </div>
-        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
-          <p className="text-xs font-bold text-slate-400 uppercase">Quota Restant</p>
-          <p className="text-xl font-black text-blue-600">488 / 500</p>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
 import {
     Dialog,
@@ -9,27 +9,52 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "../../../components/ui/dialog";
-import { Input } from "../../../components/ui/input";
 import imprimeurService from "../../../api/services/imprimeurService";
 import toast from "react-hot-toast";
 import { MyTable } from "../../../components/ui/myTable";
+import logger from "../../../lib/logger";
+import FormInputRow from "../../../components/ui/FormInputRaw";
 
 function FournisseursDisponibles() {
     const [imprimeurs, setImprimeurs] = useState([]);
+    const [impId, setImpId] = useState("")
     const [isLoading, setIsLoading] = useState(true);
 
-    const [raisonSocial, setRaisonSocial] = useState("");
-    const [adresse, setAdresse] = useState("");
-    const [nomDirecteur, setNomDirecteur] = useState("");
-    const [emailDirecteur, setEmailDirecteur] = useState("");
-    const [telDirecteur, setTelDirecteur] = useState("");
-    const [nomAdjoint, setNomAdjoint] = useState("");
-    const [emailAdjoint, setEmailAdjoint] = useState("");
-    const [telAdjoint, setTelAdjoint] = useState("");
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [form, setForm] = useState({
+        raison_sociale: "",
+        adresse: "",
+        directeur_nom: "",
+        directeur_tel: "",
+        directeur_email: "",
+        adjoint_nom: "",
+        adjoint_tel: "",
+        adjoint_email: "",
+    })
 
-    const fields = { raisonSocial, adresse, nomDirecteur, emailDirecteur, telDirecteur, nomAdjoint, emailAdjoint, telAdjoint };
-    const fieldsFunc = { setRaisonSocial, setAdresse, setNomDirecteur, setEmailDirecteur, setTelDirecteur, setNomAdjoint, setEmailAdjoint, setTelAdjoint };
+    const actionsDetaille = {
+        delete: {
+            title: "Supprimer",
+            description: "Êtes-vous sûr de vouloir supprimer ce fornisseur?",
+            actionText: "Supprimer",
+            cancelText: "Annuler",
+            type: "delete",
+            onOk: async (row) => {
+                try {
+                    await imprimeurService.delete(row.id);
+                    toast.success("Catégorie supprimée");
+                    fetchData();
+                } catch (error) {
+                    logger("Error deleting category:", error);
+                    toast.error("Erreur lors de la suppression");
+                }
+            },
+            onCancel: () => toast.error("element pas supprimé"),
+        },
+    };
+
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+    const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -49,37 +74,36 @@ function FournisseursDisponibles() {
     }, []);
 
     const handleAction = async (type, row) => {
-        if (type === "delete") {
-            // if (window.confirm("Supprimer ce fournisseur ?")) {
-            //     try {
-            //         await imprimeurService.delete(row.id);
-            //         toast.success("Fournisseur supprimé");
-            //         fetchData();
-            //     } catch (error) {
-            //         toast.error("Erreur de suppression");
-            //     }
-            // }
-
-        } else if (type === "edit") {
-            console.log("Editing row:", row);
+        if (type === "edit") {
+            setIsUpdateDialogOpen(true)
+            setForm(row)
+            setImpId(row.id)
+        }
+        if (type === "view") {
+            setIsViewDialogOpen(true)
+            setForm(row)
         }
     };
 
-    const handleSubmit = async () => {
+    const handleAddSubmit = async () => {
         try {
-            const data = {
-                raison_sociale: raisonSocial,
-                adresse,
-                directeur_nom: nomDirecteur,
-                directeur_email: emailDirecteur,
-                directeur_tel: telDirecteur,
-                adjoint_nom: nomAdjoint,
-                adjoint_email: emailAdjoint,
-                adjoint_tel: telAdjoint
-            };
+            const data = form;
             await imprimeurService.create(data);
             toast.success("Fournisseur ajouté avec succès");
-            setIsDialogOpen(false);
+            setIsAddDialogOpen(false);
+            resetForm();
+            fetchData();
+        } catch (error) {
+            toast.error("Erreur lors de l'ajout du fournisseur");
+        }
+    };
+    const handleUpdateSubmit = async () => {
+        try {
+            const data = form;
+            await imprimeurService.update(impId, data);
+            toast.success(`Livre ${form.raison_sociale} mise à jour avec succès`);
+            setIsUpdateDialogOpen(false);
+            setImpId("")
             resetForm();
             fetchData();
         } catch (error) {
@@ -88,26 +112,46 @@ function FournisseursDisponibles() {
     };
 
     const resetForm = () => {
-        setRaisonSocial("");
-        setAdresse("");
-        setNomDirecteur("");
-        setEmailDirecteur("");
-        setTelDirecteur("");
-        setNomAdjoint("");
-        setEmailAdjoint("");
-        setTelAdjoint("");
+        setForm({
+            raison_sociale: "",
+            adresse: "",
+            directeur_nom: "",
+            directeur_tel: "",
+            directeur_email: "",
+            adjoint_nom: "",
+            adjoint_tel: "",
+            adjoint_email: "",
+        })
     };
+
+    useEffect(() => {
+        if (!isAddDialogOpen && !isUpdateDialogOpen && !isViewDialogOpen) {
+            resetForm();
+        }
+    }, [isAddDialogOpen, isUpdateDialogOpen, isViewDialogOpen]);
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Liste des Fournisseurs</h1>
-                <FournisseurDialog
-                    fields={fields}
-                    fieldsFunc={fieldsFunc}
-                    onSubmit={handleSubmit}
-                    open={isDialogOpen}
-                    onOpenChange={setIsDialogOpen}
+                <FournisseurAddDialog
+                    fields={form}
+                    fieldsFunc={setForm}
+                    onSubmit={handleAddSubmit}
+                    open={isAddDialogOpen}
+                    onOpenChange={setIsAddDialogOpen}
+                />
+                <FournisseurUpdateDialog
+                    fields={form}
+                    fieldsFunc={setForm}
+                    onSubmit={handleUpdateSubmit}
+                    open={isUpdateDialogOpen}
+                    onOpenChange={setIsUpdateDialogOpen}
+                />
+                <FournisseurViewDialog
+                    fields={form}
+                    open={isViewDialogOpen}
+                    onOpenChange={setIsViewDialogOpen}
                 />
             </div>
 
@@ -115,23 +159,99 @@ function FournisseursDisponibles() {
                 <MyTable
                     data={imprimeurs}
                     variant="green"
-                    pageSize={10}
-                    actions={["view", "edit", "delete", "imp"]}
+                    pageSize={5}
+                    actions={["view", "edit", "delete"]}
                     onAction={handleAction}
                     isLoading={isLoading}
                     columns={[
                         { header: "Raison Social", accessor: "raison_sociale" },
-                        { header: "Adresse", accessor: "adresse" },
-                        { header: "Email Directeur", accessor: "directeur_email" },
-                        { header: "Téléphone", accessor: "directeur_tel" }
                     ]}
+                    actionsDetaille={actionsDetaille}
+                    enableSearch enableSorting
                 />
             </div>
         </div>
     )
 }
 
-const FournisseurDialog = ({ fields, fieldsFunc, onSubmit = () => { }, open, onOpenChange }) => {
+const FournisseurAddDialog = ({
+    fields,
+    fieldsFunc,
+    onSubmit = () => { },
+    open,
+    onOpenChange
+}) => {
+    const contentText = {
+        header: {
+            title: "Nouveau Fournisseur",
+            subtitle: "Enregistrer un nouveau partenaire fournisseur dans le système."
+        },
+        fieldsText: {
+            raison_sociale: {
+                label: "Raison Sociale",
+                placeholder: "Ex: SARL Librairie Centrale",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2",
+                required: true
+            },
+            adresse: {
+                label: "Adresse Complète",
+                placeholder: "Adresse du siège...",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2"
+            },
+            directeur_nom: {
+                label: "Nom Directeur",
+                placeholder: "Nom et Prénom",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2"
+            },
+            directeur_email: {
+                label: "Email",
+                placeholder: "Ex: directeur@email.com",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2"
+            },
+            directeur_tel: {
+                label: "Téléphone",
+                placeholder: "Ex: 06XXXXXXXX",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2"
+            },
+
+            adjoint_nom: {
+                label: "Nom Ad_Joint",
+                placeholder: "Nom et Prénom",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2"
+            },
+            adjoint_email: {
+                label: "Email",
+                placeholder: "Ex: directeur@email.com",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2"
+            },
+            adjoint_tel: {
+                label: "Téléphone",
+                placeholder: "Ex: 06XXXXXXXX",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2"
+            },
+        },
+        footer: {
+            cancel: "Annuler",
+            submit: "Enregistrer Fournisseur"
+        }
+    }
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
@@ -139,72 +259,298 @@ const FournisseurDialog = ({ fields, fieldsFunc, onSubmit = () => { }, open, onO
                     + Ajouter un fournisseur
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px] rounded-2xl border-none shadow-2xl p-0 overflow-hidden">
-                <DialogHeader className="bg-slate-900 p-8 text-white">
-                    <DialogTitle className="text-2xl font-black tracking-tight uppercase">Nouveau Fournisseur</DialogTitle>
-                    <p className="text-slate-400 text-sm mt-1">Enregistrer un nouveau partenaire fournisseur dans le système.</p>
-                </DialogHeader>
-
-                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                    {/* Basic Info */}
-                    <div className="space-y-2 col-span-2">
-                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Raison Sociale</label>
-                        <Input
-                            placeholder="Ex: SARL Librairie Centrale"
-                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
-                            value={fields.raisonSocial}
-                            onChange={(e) => fieldsFunc.setRaisonSocial(e.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-2 col-span-2">
-                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Adresse Complète</label>
-                        <Input
-                            placeholder="Adresse du siège..."
-                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
-                            value={fields.adresse}
-                            onChange={(e) => fieldsFunc.setAdresse(e.target.value)}
-                        />
-                    </div>
-
-                    {/* Directeur Info */}
-                    <div className="col-span-2 mt-4">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2 mb-4">Informations Directeur</h3>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Nom Directeur</label>
-                        <Input
-                            placeholder="Nom et Prénom"
-                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
-                            value={fields.nomDirecteur}
-                            onChange={(e) => fieldsFunc.setNomDirecteur(e.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Email</label>
-                        <Input
-                            type="email"
-                            placeholder="directeur@email.com"
-                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
-                            value={fields.emailDirecteur}
-                            onChange={(e) => fieldsFunc.setEmailDirecteur(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100 flex gap-3">
-                    <DialogClose asChild>
-                        <Button variant="outline" className="h-12 px-8 rounded-xl font-bold text-slate-600 border-slate-200">Annuler</Button>
-                    </DialogClose>
-                    <Button
-                        onClick={onSubmit}
-                        className="h-12 px-8 rounded-xl font-bold bg-slate-900 hover:bg-black text-white shadow-lg shadow-slate-200 transition-all"
-                    >
-                        Enregistrer Fournisseur
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
+            <MyDialogContent
+                contentText={contentText}
+                fields={fields}
+                fieldsFunc={fieldsFunc}
+                onSubmit={onSubmit}
+            />
         </Dialog>
     );
 };
+
+const FournisseurUpdateDialog = ({ fields, fieldsFunc, onSubmit = () => { }, open, onOpenChange }) => {
+    const contentText = {
+        header: {
+            title: "Modification des informations",
+            subtitle: "Modification les informations d'un partenaire fournisseur dans le système."
+        },
+        fieldsText: {
+            raison_sociale: {
+                label: "Raison Sociale",
+                placeholder: "Ex: SARL Librairie Centrale",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2",
+                required: true
+            },
+            adresse: {
+                label: "Adresse Complète",
+                placeholder: "Adresse du siège...",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2"
+            },
+            directeur_nom: {
+                label: "Nom Directeur",
+                placeholder: "Nom et Prénom",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2"
+            },
+            directeur_email: {
+                label: "Email",
+                placeholder: "Ex: directeur@email.com",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2"
+            },
+            directeur_tel: {
+                label: "Téléphone",
+                placeholder: "Ex: 06XXXXXXXX",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2"
+            },
+
+            adjoint_nom: {
+                label: "Nom Ad_Joint",
+                placeholder: "Nom et Prénom",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2"
+            },
+            adjoint_email: {
+                label: "Email",
+                placeholder: "Ex: directeur@email.com",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2"
+            },
+            adjoint_tel: {
+                label: "Téléphone",
+                placeholder: "Ex: 06XXXXXXXX",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2"
+            },
+        },
+        footer: {
+            cancel: "Annuler",
+            submit: "Enregistrer les modifications"
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <MyDialogContent
+                contentText={contentText}
+                fields={fields}
+                fieldsFunc={fieldsFunc}
+                onSubmit={onSubmit}
+            />
+        </Dialog>
+    );
+};
+
+const FournisseurViewDialog = ({ fields, open, onOpenChange }) => {
+    const contentText = {
+        header: {
+            title: "Detail de l'Fournisseur",
+            subtitle: "les informations d'un fournisseur dans le système."
+        },
+        fieldsText: {
+            raison_sociale: {
+                label: "Raison Sociale",
+                placeholder: "Ex: SARL Librairie Centrale",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2",
+                disabled: true
+            },
+            adresse: {
+                label: "Adresse Complète",
+                placeholder: "Adresse du siège...",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2",
+                disabled: true
+            },
+            directeur_nom: {
+                label: "Nom Directeur",
+                placeholder: "Nom et Prénom",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2",
+                disabled: true
+            },
+            directeur_email: {
+                label: "Email",
+                placeholder: "Ex: directeur@email.com",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2",
+                disabled: true
+            },
+            directeur_tel: {
+                label: "Téléphone",
+                placeholder: "Ex: 06XXXXXXXX",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2",
+                disabled: true
+            },
+
+            adjoint_nom: {
+                label: "Nom Ad_Joint",
+                placeholder: "Nom et Prénom",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2",
+                disabled: true
+            },
+            adjoint_email: {
+                label: "Email",
+                placeholder: "Ex: directeur@email.com",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2",
+                disabled: true
+            },
+            adjoint_tel: {
+                label: "Téléphone",
+                placeholder: "Ex: 06XXXXXXXX",
+                labelClassName: "text-sm font-bold text-slate-700 uppercase tracking-wider",
+                inputClassName: "h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50",
+                className: "space-y-2 col-span-2",
+                disabled: true
+            },
+        },
+        footer: {
+            cancel: "Annuler",
+            submit: "Enregistrer les modifications"
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <MyDialogContent
+                contentText={contentText}
+                fields={fields}
+                footer={false}
+                onCancel={() => onOpenChange(false)}
+            />
+        </Dialog>
+    );
+};
+
+const MyDialogContent = ({ contentText, fields, fieldsFunc = () => { }, onSubmit = () => { }, footer = true }) => {
+    const emailregex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    const errors = useMemo(() => {
+        if (!footer) return { raison_sociale: "", directeur_email: "", adjoint_email: "" };
+        return {
+            raison_sociale: (!fields.raison_sociale || fields.raison_sociale.trim() === "")
+                ? "Ce champ est obligatoire" : "",
+            directeur_email: (fields.directeur_email && !emailregex.test(fields.directeur_email))
+                ? "Suivez le format d'un email" : "",
+            adjoint_email: (fields.adjoint_email && !emailregex.test(fields.adjoint_email))
+                ? "Suivez le format d'un email" : "",
+        };
+    }, [fields]);
+
+    const isFormInvalid = useMemo(() => {
+        return Object.values(errors).some(error => error !== "");
+    }, [errors]);
+
+    const handleFinalSubmit = () => {
+        if (!isFormInvalid) {
+            onSubmit();
+        }
+    };
+
+    return (
+        <DialogContent className="sm:max-w-[800px] rounded-2xl border-none shadow-2xl p-0 overflow-hidden">
+            <DialogHeader className="bg-slate-900 p-8 text-white">
+                <DialogTitle className="text-2xl font-black tracking-tight uppercase">{contentText.header.title}</DialogTitle>
+                <p className="text-slate-400 text-sm mt-1">{contentText.header.subtitle}</p>
+            </DialogHeader>
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <FormInputRow
+                    type="text"
+                    {...contentText.fieldsText.raison_sociale}
+                    value={fields.raison_sociale}
+                    onChange={(val) => fieldsFunc({ ...fields, raison_sociale: val })}
+                    error={errors.raison_sociale}
+                />
+                <FormInputRow
+                    type="text"
+                    {...contentText.fieldsText.adresse}
+                    value={fields.adresse}
+                    onChange={(val) => fieldsFunc({ ...fields, adresse: val })}
+                />
+
+                <div className="col-span-2 mt-4">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2 mb-4">Informations Directeur</h3>
+                </div>
+                <FormInputRow
+                    type="text"
+                    {...contentText.fieldsText.directeur_nom}
+                    value={fields.directeur_nom}
+                    onChange={(val) => fieldsFunc({ ...fields, directeur_nom: val })}
+                />
+                <FormInputRow
+                    type="email"
+                    {...contentText.fieldsText.directeur_email}
+                    value={fields.directeur_email}
+                    onChange={(val) => fieldsFunc({ ...fields, directeur_email: val })}
+                    error={errors.directeur_email}
+                />
+                <FormInputRow
+                    type="text"
+                    {...contentText.fieldsText.directeur_tel}
+                    value={fields.directeur_tel}
+                    onChange={(val) => fieldsFunc({ ...fields, directeur_tel: val })}
+                />
+
+
+                <div className="col-span-2 mt-4">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2 mb-4">Informations Ad_Joint</h3>
+                </div>
+                <FormInputRow
+                    type="text"
+                    {...contentText.fieldsText.adjoint_nom}
+                    value={fields.adjoint_nom}
+                    onChange={(val) => fieldsFunc({ ...fields, adjoint_nom: val })}
+                />
+                <FormInputRow
+                    type="email"
+                    {...contentText.fieldsText.adjoint_email}
+                    value={fields.adjoint_email}
+                    onChange={(val) => fieldsFunc({ ...fields, adjoint_email: val })}
+                    error={errors.adjoint_email}
+                />
+                <FormInputRow
+                    type="text"
+                    {...contentText.fieldsText.adjoint_tel}
+                    value={fields.adjoint_tel}
+                    onChange={(val) => fieldsFunc({ ...fields, adjoint_tel: val })}
+                />
+            </div>
+            <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100 flex gap-3">
+                <DialogClose asChild>
+                    <Button variant="outline" className="h-12 px-8 rounded-xl font-bold text-slate-600 border-slate-200">{contentText.footer.cancel}</Button>
+                </DialogClose>
+                {footer && <Button
+                    onClick={handleFinalSubmit}
+                    className="h-12 px-8 rounded-xl font-bold bg-slate-900 hover:bg-black text-white shadow-lg shadow-slate-200 transition-all"
+                    disabled={isFormInvalid}
+                >
+                    {contentText.footer.submit}
+                </Button>}
+            </DialogFooter>
+        </DialogContent>
+    )
+}
 
 export default FournisseursDisponibles;

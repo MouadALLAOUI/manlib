@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import FormInputRow from "../../../components/ui/FormInputRaw";
 import { UserPlus, Send } from "lucide-react";
@@ -6,8 +6,8 @@ import { UserPlus, Send } from "lucide-react";
 const InvitationPage = () => {
     const [formData, setFormData] = useState({ 
         email: "", 
-        role: "représentant", 
-        message: "Bonjour,\n\nNous vous invitons à rejoindre notre plateforme de gestion de bibliothèque." 
+        role: "représentant",
+        message: "" 
     });
 
     return (
@@ -23,6 +23,10 @@ const InvitationPage = () => {
             </div>
 
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+                <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-sm">
+                    <div className="font-bold">Backend missing</div>
+                    <div>Endpoint requis (exemple): POST /api/invitations</div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormInputRow 
                         label="Adresse Email" 
@@ -48,7 +52,7 @@ const InvitationPage = () => {
                 />
 
                 <div className="pt-4 border-t border-slate-50">
-                    <Button className="w-full bg-blue-600 text-white flex items-center justify-center gap-2 py-6 text-lg font-bold hover:bg-blue-700 transition-colors">
+                    <Button disabled className="w-full bg-blue-600 text-white flex items-center justify-center gap-2 py-6 text-lg font-bold hover:bg-blue-700 transition-colors">
                         <Send size={20} /> Envoyer l'invitation
                     </Button>
                 </div>

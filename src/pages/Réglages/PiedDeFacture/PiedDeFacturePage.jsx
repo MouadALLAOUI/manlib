@@ -1,14 +1,14 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import FormInputRow from "../../../components/ui/FormInputRaw";
 import { FileText, Save, Info } from "lucide-react";
 
 const PiedDeFacturePage = () => {
     const [formData, setFormData] = useState({ 
-        bank_name: "Banque Populaire", 
-        rib: "123 456 789 012 345 678 901 234", 
-        contact_info: "Tél: +212 5 22 12 34 56 | Email: contact@ajial-medias.com",
-        footer_text: "Merci pour votre confiance. En cas de retard de paiement, une pénalité de 10% sera appliquée."
+        bank_name: "", 
+        rib: "", 
+        contact_info: "",
+        footer_text: ""
     });
 
     return (
@@ -24,6 +24,10 @@ const PiedDeFacturePage = () => {
             </div>
 
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 space-y-8">
+                <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-sm">
+                    <div className="font-bold">Backend missing</div>
+                    <div>Endpoints requis (exemple): GET/PUT /api/settings/pied-de-facture</div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <FormInputRow 
                         label="Nom de la Banque" 
@@ -55,7 +59,7 @@ const PiedDeFacturePage = () => {
                 />
 
                 <div className="pt-6 border-t border-slate-100 flex justify-end">
-                    <Button className="bg-slate-900 text-white flex items-center gap-2 px-8 h-12 font-bold hover:bg-slate-800 transition-colors">
+                    <Button disabled className="bg-slate-900 text-white flex items-center gap-2 px-8 h-12 font-bold hover:bg-slate-800 transition-colors">
                         <Save size={18} /> Enregistrer la configuration
                     </Button>
                 </div>
