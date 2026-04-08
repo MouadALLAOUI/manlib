@@ -1,8 +1,5 @@
 import { Button } from "../../../components/ui/button";
 import {
-    CustomDataTable
-} from "../../../components/ui/table";
-import {
     Dialog,
     DialogClose,
     DialogContent,
@@ -20,6 +17,7 @@ import categoryService from "../../../api/services/categoryService";
 import toast from "react-hot-toast";
 import logger from "../../../lib/logger";
 import { MyTable } from "../../../components/ui/myTable";
+import { type } from "@testing-library/user-event/dist/type";
 
 function LivresPage() {
     const [livres, setLivres] = useState([]);
@@ -137,6 +135,16 @@ function LivresPage() {
         }
     };
 
+    const columns = [
+        { header: "Titre", accessor: "titre" },
+        { header: "Code", accessor: "code" },
+        { header: "Catégorie", accessor: "category_name" },
+        { header: "Achat (DH)", accessor: "prix_achat", type: "curr" },
+        { header: "Vente (DH)", accessor: "prix_vente", type: "curr" },
+        { header: "P. publique (DH)", accessor: "prix_public", type: "curr" },
+        { header: "Nombre de pages", accessor: "nb_pages" },
+    ]
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -167,15 +175,7 @@ function LivresPage() {
                     actions={["edit", "delete"]}
                     onAction={handleAction}
                     isLoading={isLoading}
-                    columns={[
-                        { header: "Titre", accessor: "titre" },
-                        { header: "Code", accessor: "code" },
-                        { header: "Catégorie", accessor: "category_name" },
-                        { header: "Achat (DH)", accessor: "prix_achat" },
-                        { header: "Vente (DH)", accessor: "prix_vente" },
-                        { header: "P. publique (DH)", accessor: "prix_public" },
-                        { header: "Nombre de pages", accessor: "nb_pages" },
-                    ]}
+                    columns={columns}
                     actionsDetaille={actionsDetaille}
                     enableSearch={true}
                     enableSorting={true}

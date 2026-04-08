@@ -7,9 +7,11 @@ const useAppStore = create(
             // --- Auth State ---
             user: null,
             profile: null,
+            isAdminMode: false,
             loading: true,
 
             setLoading: (loading) => set({ loading }),
+            setAdminMode: (value) => set({ isAdminMode: !!value }),
 
             login: (userData) => {
                 set({
@@ -53,7 +55,7 @@ const useAppStore = create(
         {
             name: 'app-storage', // name of the item in the storage (must be unique)
             storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
-            partialize: (state) => ({ user: state.user, profile: state.profile, services: state.services }), // only persist these fields
+            partialize: (state) => ({ user: state.user, profile: state.profile, services: state.services, isAdminMode: state.isAdminMode }), // only persist these fields
             onRehydrateStorage: () => (state) => {
                 state.setLoading(false);
             },

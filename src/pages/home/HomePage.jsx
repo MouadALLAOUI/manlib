@@ -8,30 +8,20 @@ import toast from "react-hot-toast";
 function HomePage() {
     const [selectedDestination, setSelectedDestination] = useState("");
     const [destinations, setDestinations] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [destination, setDestination] = useState("");
 
     const fetchData = async () => {
-        setIsLoading(true);
         try {
             const response = await destinationService.getAll();
             setDestinations(response.data.data || response.data);
         } catch (error) {
             console.error("Error fetching destinations:", error);
             toast.error("Erreur lors du chargement des destinations");
-        } finally {
-            setIsLoading(false);
         }
     };
 
     useEffect(() => {
         fetchData();
     }, []);
-
-    const handleDestinationChange = (value) => {
-        setDestination(value);
-        toast.success(`Destination change a: ${value}`);
-    };
 
     const accordionItems = [
         {

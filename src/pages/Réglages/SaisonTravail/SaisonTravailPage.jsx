@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import FormInputRow from "../../../components/ui/FormInputRaw";
 import { CalendarDays, Save } from "lucide-react";
 
 const SaisonTravailPage = () => {
-    const [saison, setSaison] = useState("2026/2027");
+    const [saison, setSaison] = useState("");
 
     return (
         <div className="max-w-md mx-auto space-y-6 pt-10">
@@ -17,6 +17,10 @@ const SaisonTravailPage = () => {
             </div>
 
             <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 space-y-6">
+                <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-sm">
+                    <div className="font-bold">Backend missing</div>
+                    <div>Endpoints requis (exemple): GET/PUT /api/settings/saison</div>
+                </div>
                 <FormInputRow 
                     label="Saison Active" 
                     inputType="select" 
@@ -25,7 +29,7 @@ const SaisonTravailPage = () => {
                     onChange={setSaison}
                     layout="col"
                 />
-                <Button className="w-full bg-slate-900 text-white flex items-center gap-2 h-12 font-bold">
+                <Button disabled className="w-full bg-slate-900 text-white flex items-center gap-2 h-12 font-bold">
                     <Save size={18} /> Appliquer les changements
                 </Button>
             </div>

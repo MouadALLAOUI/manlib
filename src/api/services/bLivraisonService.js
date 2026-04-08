@@ -8,4 +8,5 @@ const bLivraisonService = {
     delete: (id) => api.delete(`/b-livraisons/${id}`),
 };
 
+
 export default bLivraisonService;

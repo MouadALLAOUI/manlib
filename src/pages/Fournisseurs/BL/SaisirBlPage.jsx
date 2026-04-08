@@ -1,23 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../../components/ui/button";
-import { CustomDataTable } from "../../../components/ui/table";
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "../../../components/ui/dialog";
-import { Input } from "../../../components/ui/input";
-import { AccordionComponent } from "../../../components/ui/accordion";
-import bLivraisonService from "../../../api/services/bLivraisonService";
 import imprimeurService from "../../../api/services/imprimeurService";
+import bLivraisonImpService from "../../../api/services/bLivraisonImpService";
 import livreService from "../../../api/services/livreService";
 import categoryService from "../../../api/services/categoryService";
 import toast from "react-hot-toast";
-import { CustomSelectComponent } from "../../../components/ui/select";
+import { MyTable } from "../../../components/ui/myTable";
+import logger from "../../../lib/logger";
+import FormInputRow from "../../../components/ui/FormInputRaw";
+import { numberRound } from "../../../lib/utilities";
+import UniversalDialog from "../../../components/template/dialog/UniversalDialog";
+import { universalFetch } from "../../../api/helpers/methodes";
 
 function FournisseurSaisirBl() {
     const [blData, setBlData] = useState([]);
@@ -28,27 +21,120 @@ function FournisseurSaisirBl() {
 
     const [formData, setFormData] = useState({
         imprimeur_id: "",
-        date_livraison: "",
-        n_bl: "",
-        details: [] // This will store items with qte > 0
+        date_reception: "",
+        b_livraison_number: "",
+        quantite: "",
+        livre_id: "",
+        remarks: "",
+        details: [], // This will store items with qte > 0
     });
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [itemQte, setItemQte] = useState(0);
+
+    const actionsDetaille = {
+        delete: {
+            title: "Supprimer",
+            description: "Êtes-vous sûr de vouloir supprimer ce fornisseur?",
+            actionText: "Supprimer",
+            cancelText: "Annuler",
+            type: "delete",
+            onOk: async (row) => {
+                try {
+                    await bLivraisonImpService.deleteGroup(row.id);
+                    toast.success("b_livraison supprimée");
+                    fetchData();
+                } catch (error) {
+                    logger("Error deleting b_livraison:", error);
+                    toast.error("Erreur lors de la suppression");
+                }
+            },
+            onCancel: () => toast.error("element pas supprimé"),
+        },
+    };
+
+    const actionsSubDetaille = {
+        delete: {
+            title: "Supprimer",
+            description: "Êtes-vous sûr de vouloir supprimer ce fornisseur?",
+            actionText: "Supprimer",
+            cancelText: "Annuler",
+            type: "delete",
+            onOk: async (row) => {
+                try {
+                    await bLivraisonImpService.delete(row.id);
+                    toast.success("Livre supprimé du BL");
+                    fetchData();
+                    setSelectedBlItems(prev => ({
+                        ...prev,
+                        items: prev.items.filter(i => i.id !== row.id)
+                    }));
+                } catch (error) {
+                    logger("Error deleting b_livraison:", error);
+                    toast.error("Erreur lors de la suppression");
+                }
+            },
+            onCancel: () => toast.error("element pas supprimé"),
+        },
+        edit: {
+            title: "modifier",
+            description: <FormInputRow
+                type="number"
+                min="1"
+                value={itemQte}
+                step="1"
+                onChange={(val) => setItemQte(numberRound(val))} />,
+            actionText: "modifier",
+            cancelText: "Annuler",
+            type: "edit",
+            onOk: async (row) => {
+                setItemQte(Number(row.quantite))
+                if (itemQte && !isNaN(itemQte)) {
+                    try {
+                        await bLivraisonImpService.update(row.id, { quantite: itemQte });
+                        toast.success("Quantité mise à jour");
+                        fetchData();
+                        setSelectedBlItems(prev => ({
+                            ...prev,
+                            items: prev.items.map(i => i.id === row.id ? { ...i, quantite: itemQte } : i)
+                        }));
+                        setItemQte(0)
+                    } catch (error) {
+                        toast.error("Erreur lors de la mise à jour");
+                    }
+                }
+            },
+            onCancel: () => {
+                toast.error("element pas modifier")
+                setItemQte(0)
+            },
+        },
+    }
+
+    const [selectedBlItems, setSelectedBlItems] = useState(null);
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [blRes, impRes, livreRes, catRes] = await Promise.all([
-                bLivraisonService.getAll(),
+            const groupedBLs = await universalFetch({
+                dataService: bLivraisonImpService.getAll,
+                groupOptions: {
+                    keys: ['imprimeur_id', 'date_reception', 'b_livraison_number'],
+                    sumField: 'quantite'
+                }
+            });
+            setBlData(groupedBLs);
+
+            const [impRes, livreRes, catRes] = await Promise.all([
                 imprimeurService.getAll(),
                 livreService.getAll(),
                 categoryService.getAll()
             ]);
-            setBlData(blRes.data.data || blRes.data);
+
             setImprimeurs(impRes.data.data || impRes.data);
             setLivres(livreRes.data.data || livreRes.data);
             setCategories(catRes.data.data || catRes.data);
+
         } catch (error) {
-            console.error("Error fetching data:", error);
             toast.error("Erreur lors du chargement des données");
         } finally {
             setIsLoading(false);
@@ -70,172 +156,189 @@ function FournisseurSaisirBl() {
     };
 
     const handleAction = async (type, row) => {
-        if (type === "delete") {
-            if (window.confirm("Supprimer ce BL ?")) {
-                try {
-                    await bLivraisonService.delete(row.id);
-                    toast.success("BL supprimé");
-                    fetchData();
-                } catch (error) {
-                    toast.error("Erreur de suppression");
-                }
-            }
-        } else if (type === "edit") {
-            console.log("Editing row:", row);
+        if (type === "view") {
+            setSelectedBlItems({
+                number: row.b_livraison_number,
+                imprimeur: row.imprimeur?.raison_sociale,
+                date: row.date_reception,
+                items: row.items
+            });
+            console.log(row)
+
+            // Scroll smoothly to the detail table
+            setTimeout(() => {
+                document.getElementById('bl-details-section')?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+    };
+
+    const handleItemAction = async (type, itemRow) => {
+        if (type === "edit") {
+            setItemQte(Number(itemRow.quantite))
         }
     };
 
     const handleSubmit = async () => {
         try {
-            await bLivraisonService.create(formData);
+            await bLivraisonImpService.create(formData);
             toast.success("BL enregistré avec succès");
             setIsDialogOpen(false);
-            setFormData({ imprimeur_id: "", date_livraison: "", n_bl: "", details: [] });
+            resetForm();
             fetchData();
         } catch (error) {
             toast.error("Erreur lors de l'enregistrement du BL");
         }
     };
 
-    // Group books by category
+    const resetForm = () => {
+        setFormData({
+            imprimeur_id: "",
+            date_reception: "",
+            b_livraison_number: "",
+            quantite: "",
+            livre_id: "",
+            remarks: "",
+            details: [],
+        });
+    }
+
     const booksByLevel = {};
     categories.forEach(cat => {
-        booksByLevel[cat.libelle] = livres.filter(l => l.category_id === cat.id).map(l => ({ id: l.id, label: l.titre }));
+        booksByLevel[cat.libelle] = [];
+        livres.forEach(liv => {
+            if (liv.category && liv.category.libelle === cat.libelle) {
+                booksByLevel[cat.libelle].push({
+                    label: liv.titre,
+                    value: liv.id
+                });
+            }
+        });
     });
+
+    const columns = [
+        { header: "Fournisseur", accessor: "imprimeur.raison_sociale" },
+        { header: "Date", accessor: "date_reception", type: "date" },
+        { header: "N° BL", accessor: "b_livraison_number" },
+        { header: "Articles", accessor: "items.length" },
+    ]
+
+    const schema = useMemo(() => [
+        {
+            name: "imprimeur_id",
+            label: "Fournisseur",
+            placeholder: "Choisir fournisseur",
+            inputType: "select",
+            items: imprimeurs.map(i => ({ label: i.raison_sociale, value: i.id })),
+            value: formData.imprimeur_id,
+            onChange: (v) => setFormData({ ...formData, imprimeur_id: v })
+        },
+        {
+            name: "date_reception",
+            label: "Date",
+            inputType: "date",
+            type: "date",
+            value: formData.date_reception,
+            onChange: (v) => setFormData({ ...formData, date_reception: v })
+        },
+        {
+            name: "b_livraison_number",
+            label: "N° BL",
+            placeholder: "Ex: BL-2024-001",
+            value: formData.b_livraison_number,
+            onChange: (v) => setFormData({ ...formData, b_livraison_number: v })
+        },
+        {
+            type: "section",
+            label: "Détail de la Livraison"
+        },
+        {
+            type: "book_accordion",
+            data: booksByLevel,      // <--- RAW DATA
+            details: formData.details, // <--- FOR VALUES
+            onUpdateDetail: updateDetail // <--- YOUR LOGIC
+        },
+        {
+            type: "section",
+            label: "Summary"
+        },
+        {
+            type: "summary",
+            data: formData.details // <--- AUTOMATIC YELLOW TABLE
+        }
+    ], [formData, imprimeurs, booksByLevel]);
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Liste des BL (Fournisseur &rarr; MSM-MEDIAS)</h1>
-                <BLDialog 
-                    formData={formData} 
-                    setFormData={setFormData} 
-                    onUpdateDetail={updateDetail} 
-                    imprimeurs={imprimeurs}
-                    booksByLevel={booksByLevel}
+                <UniversalDialog
+                    schema={schema}
+                    config={{ title: "Saisie de Bon de Livraison" }}
+                    trigger={
+                        <Button className="bg-slate-900 hover:bg-black text-white px-6 h-11 rounded-xl font-bold shadow-lg shadow-slate-100 transition-all hover:scale-[1.02]">
+                            + Saisir un nouveau BL
+                        </Button>
+                    }
                     onSubmit={handleSubmit}
+                    grid={3}
                     open={isDialogOpen}
                     onOpenChange={setIsDialogOpen}
                 />
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <CustomDataTable
+                <MyTable
                     data={blData}
                     variant="slate"
                     pageSize={10}
-                    actions={["view", "edit", "delete"]}
+                    actions={["view", "delete"]}
                     onAction={handleAction}
                     isLoading={isLoading}
-                    columns={[
-                        { header: "Fournisseur", accessor: "imprimeur_name" }, // Assuming API returns name
-                        { header: "Date", accessor: "date_livraison" },
-                        { header: "N° BL", accessor: "n_bl" },
-                    ]}
+                    columns={columns}
+                    actionsDetaille={actionsDetaille}
+                    enableSearch enableSorting
                 />
+
+                {selectedBlItems && (
+                    <div id="bl-details-section" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 className="text-lg font-black text-slate-900 uppercase">
+                                    Détails du BL: {selectedBlItems.number}
+                                </h2>
+                                <p className="text-sm text-slate-500">
+                                    {selectedBlItems.imprimeur} — {selectedBlItems.date}
+                                </p>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedBlItems(null)}
+                                className="text-slate-400 hover:text-slate-900"
+                            >
+                                Fermer les détails
+                            </Button>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                            <MyTable
+                                data={selectedBlItems.items}
+                                variant="blue"
+                                pageSize={20}
+                                actions={["edit", "delete"]}
+                                onAction={(type, itemRow) => handleItemAction(type, itemRow)}
+                                columns={[
+                                    { header: "Désignation du Livre", accessor: "livre.titre" },
+                                    { header: "Quantité Livrée", accessor: "quantite" }
+                                ]}
+                                actionsDetaille={actionsSubDetaille}
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
-
-const BLDialog = ({ formData, setFormData, onUpdateDetail, imprimeurs, booksByLevel, onSubmit, open, onOpenChange }) => {
-
-    const accordionLevels = Object.keys(booksByLevel).map(level => ({
-        title: level.toUpperCase(),
-        content: (
-            <div className="p-4 space-y-4 bg-slate-50/50 rounded-xl">
-                {booksByLevel[level].map((book) => (
-                    <BookInput
-                        key={book.id}
-                        label={book.label}
-                        onChange={(qte) => onUpdateDetail(book.id, book.label, qte)}
-                    />
-                ))}
-            </div>
-        ),
-    }));
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogTrigger asChild>
-                <Button className="bg-slate-900 hover:bg-black text-white px-6 h-11 rounded-xl font-bold shadow-lg shadow-slate-100 transition-all hover:scale-[1.02]">
-                    + Saisir un nouveau BL
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[900px] rounded-2xl border-none shadow-2xl p-0 overflow-hidden">
-                <DialogHeader className="bg-slate-900 p-8 text-white">
-                    <DialogTitle className="text-2xl font-black tracking-tight uppercase">Saisie Bon de Livraison</DialogTitle>
-                    <p className="text-slate-400 text-sm mt-1">Enregistrer les entrées de stock en provenance des fournisseurs.</p>
-                </DialogHeader>
-
-                <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Fournisseur</label>
-                        <CustomSelectComponent
-                            items={imprimeurs.map(i => ({ label: i.nom, value: i.id }))}
-                            placeholder="Choisir fournisseur"
-                            value={formData.imprimeur_id}
-                            onValueChange={(v) => setFormData({ ...formData, imprimeur_id: v })}
-                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Date</label>
-                        <Input
-                            type="date"
-                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
-                            value={formData.date_livraison}
-                            onChange={(e) => setFormData({ ...formData, date_livraison: e.target.value })}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">N° BL</label>
-                        <Input
-                            placeholder="Ex: BL-2024-001"
-                            className="h-12 border-slate-200 focus:ring-slate-900 rounded-xl bg-slate-50/50"
-                            value={formData.n_bl}
-                            onChange={(e) => setFormData({ ...formData, n_bl: e.target.value })}
-                        />
-                    </div>
-                </div>
-
-                <div className="px-8 pb-8 max-h-[50vh] overflow-y-auto custom-scrollbar">
-                    <div className="mb-4">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Détails des Articles</h3>
-                        <AccordionComponent AccordionItems={accordionLevels} id="bl-levels" variant="light" allowMultiple={true} />
-                    </div>
-                </div>
-
-                <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100 flex gap-3">
-                    <DialogClose asChild>
-                        <Button variant="outline" className="h-12 px-8 rounded-xl font-bold text-slate-600 border-slate-200">Annuler</Button>
-                    </DialogClose>
-                    <Button 
-                        onClick={onSubmit}
-                        className="h-12 px-8 rounded-xl font-bold bg-slate-900 hover:bg-black text-white shadow-lg shadow-slate-200 transition-all"
-                    >
-                        Valider le BL
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-};
-
-const BookInput = ({ label, onChange }) => (
-    <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 shadow-sm transition-all hover:border-slate-300">
-        <span className="text-sm font-bold text-slate-700 truncate mr-4">{label}</span>
-        <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">QTE</span>
-            <Input
-                type="number"
-                min="0"
-                className="w-20 h-9 text-center border-slate-200 focus:ring-slate-900 rounded-lg bg-slate-50"
-                placeholder="0"
-                onChange={(e) => onChange(e.target.value)}
-            />
-        </div>
-    </div>
-);
 
 export default FournisseurSaisirBl;

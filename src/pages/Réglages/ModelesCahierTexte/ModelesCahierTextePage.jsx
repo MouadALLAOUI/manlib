@@ -1,22 +1,11 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import FormInputRow from "../../../components/ui/FormInputRaw";
 import { BookOpen, Plus, Save, Trash2, Edit } from "lucide-react";
 
 const ModelesCahierTextePage = () => {
-    const [templates, setTemplates] = useState([
-        { id: 1, name: "Modèle Standard", content: "L'enseignant a traité le chapitre {chapitre} avec succès." },
-        { id: 2, name: "Modèle Révision", content: "Séance de révision sur le thème {theme} pour préparer l'examen." },
-        { id: 3, name: "Modèle Exercice", content: "Réalisation des exercices de la page {page} à la page {page_fin}." },
-    ]);
-
+    const [templates] = useState([]);
     const [editingTemplate, setEditingTemplate] = useState({ name: "", content: "" });
-
-    const handleSave = () => {
-        // Logic for saving (mock)
-        console.log("Saving template:", editingTemplate);
-        setEditingTemplate({ name: "", content: "" });
-    };
 
     return (
         <div className="max-w-5xl mx-auto space-y-6 pt-6 px-4">
@@ -30,13 +19,24 @@ const ModelesCahierTextePage = () => {
                         <p className="text-slate-500 text-sm">Créez et gérez des modèles de saisie pour vos cahiers de texte.</p>
                     </div>
                 </div>
-                <Button className="bg-blue-600 text-white flex items-center gap-2 px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                <Button disabled className="bg-blue-600 text-white flex items-center gap-2 px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors">
                     <Plus size={18} /> Nouveau Modèle
                 </Button>
             </div>
 
+            <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-sm">
+                <div className="font-bold">Backend missing</div>
+                <div>Endpoints requis (exemple): GET/POST/PUT/DELETE /api/cahier-templates</div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-4">
+                    {templates.length === 0 ? (
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <p className="text-slate-600 font-semibold">Aucun modèle disponible.</p>
+                            <p className="text-slate-500 text-sm">Connexion backend requise pour charger et gérer les modèles.</p>
+                        </div>
+                    ) : null}
                     {templates.map((template) => (
                         <div key={template.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between hover:border-blue-200 transition-all group">
                             <div className="space-y-1">
@@ -82,7 +82,7 @@ const ModelesCahierTextePage = () => {
                         <p>Les variables comme {"{chapitre}"}, {"{page}"} seront remplacées lors de la saisie réelle.</p>
                     </div>
 
-                    <Button onClick={handleSave} className="w-full bg-slate-900 text-white flex items-center justify-center gap-2 h-12 font-bold hover:bg-slate-800 transition-colors">
+                    <Button disabled className="w-full bg-slate-900 text-white flex items-center justify-center gap-2 h-12 font-bold hover:bg-slate-800 transition-colors">
                         <Save size={18} /> Sauvegarder
                     </Button>
                 </div>

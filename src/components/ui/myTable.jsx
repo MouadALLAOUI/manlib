@@ -14,10 +14,24 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 import { AlertBox, AlertBoxContainer, AlertBoxTrigger } from "./AlertBox";
 import { Button } from "./button"
 import { Input } from "./input";
+import { currencyFormat, dateFormat } from "../../lib/utilities";
 
 const getNestedValue = (obj, path) => {
   if (!path) return "";
-  return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+  // Split by "||" to handle fallbacks
+  const paths = path.split('||').map(p => p.trim());
+  for (const singlePath of paths) {
+    if ((singlePath.startsWith("'") && singlePath.endsWith("'")) ||
+      (singlePath.startsWith('"') && singlePath.endsWith('"'))) {
+      return singlePath.slice(1, -1);
+    }
+    const value = singlePath.split('.').reduce((acc, part) => acc && acc[part], obj);
+
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+  return "";
 };
 
 /**
@@ -282,10 +296,6 @@ const MyTableRow = ({ row, columns, actions, onAction, actionsDetaille, isItemSe
     `odd:bg-white even:bg-slate-50/30`,
     "transition-colors hover:bg-slate-100/50"
   );
-  const deleteAlertInfo = {
-    type: "delete",
-    ...actionsDetaille.delete
-  }
   return (
     <TableRow
       key={row.id}
@@ -302,14 +312,49 @@ const MyTableRow = ({ row, columns, actions, onAction, actionsDetaille, isItemSe
       )}
       {columns.map((column, colIndex) => {
         const value = getNestedValue(row, column.accessor);
+        let content;
+
+        if (column.render) {
+          content = column.render(value, row);
+        } else if (column.type === "currency" || column.type === "money" || column.type === "curr") {
+          content = currencyFormat(value);
+        } else if (column.type === "date") {
+          content = dateFormat(value);
+        } else if (typeof value === "boolean" || column.type === "bool") {
+          const badge = value ? (
+            <BadgeCheck className="text-emerald-600" />
+          ) : (
+            <BadgeX className="text-red-300" />
+          );
+
+          // If onClick is provided in the column definition, wrap it in a button
+          content = column.onClick ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent row click events
+                column.onClick(row);
+              }}
+              className="hover:scale-110 transition-transform active:opacity-70"
+            >
+              {badge}
+            </button>
+          ) : (
+            badge
+          );
+        } else {
+          content = value;
+        }
+
         const cellStyle = (colIndex === 0 && iStyle)
           ? { backgroundColor: rowColor }
           : {};
         return (
-          <TableCell key={column.accessor} style={cellStyle} className={cn(colIndex === 0 && iStyle && "font-medium")}>
-            {typeof value === "boolean" ? (
-              value ? <BadgeCheck className="text-emerald-600" /> : <BadgeX className="text-slate-300" />
-            ) : value}
+          <TableCell
+            key={column.accessor}
+            style={cellStyle}
+            className={cn(colIndex === 0 && iStyle && "font-medium")}
+          >
+            {content}
           </TableCell>
         )
       })}
@@ -317,26 +362,35 @@ const MyTableRow = ({ row, columns, actions, onAction, actionsDetaille, isItemSe
         <TableCell key="actions" className={styles.body.tablebody.cell}>
           {actions.includes("view") && (
             <ActionToolTip
+              row={row}
               Icon={Eye}
               tip="Détails"
               onAction={() => onAction("view", row)}
               triggerStyle="text-emerald-600"
+              alertInfo={actionsDetaille.edit || null}
+              hasAlert={actionsDetaille.edit || false}
             />
           )}
           {actions.includes("edit") && (
             <ActionToolTip
+              row={row}
               Icon={SquarePen}
               tip="Modifier"
               onAction={() => onAction("edit", row)}
               triggerStyle={"text-blue-600 hover:text-blue-900 transition-colors"}
+              alertInfo={actionsDetaille.edit || null}
+              hasAlert={actionsDetaille.edit || false}
             />
           )}
           {actions.includes("imp") && (
             <ActionToolTip
+              row={row}
               Icon={Printer}
               tip="Imprimer"
               onAction={() => onAction("imp", row)}
               triggerStyle={"text-slate-600 hover:text-slate-900 transition-colors"}
+              alertInfo={actionsDetaille.imp || null}
+              hasAlert={actionsDetaille.imp || false}
             />
           )}
           {actions.includes("delete") && (
@@ -346,8 +400,8 @@ const MyTableRow = ({ row, columns, actions, onAction, actionsDetaille, isItemSe
               tip="Supprimer"
               onAction={() => onAction("delete", row)}
               triggerStyle={"text-red-400 hover:text-red-600 transition-colors"}
-              alertInfo={deleteAlertInfo}
-              hasAlert
+              alertInfo={actionsDetaille.delete || null}
+              hasAlert={actionsDetaille.delete || false}
             />
           )}
         </TableCell>
@@ -380,13 +434,13 @@ const ActionToolTip = ({ Icon, tip, onAction, triggerStyle, hasAlert, alertInfo,
           </button>
         </AlertBoxTrigger>
         <AlertBoxContainer
-          type={alertInfo?.type}
-          title={alertInfo.title}
-          description={alertInfo.description}
-          cancelText={alertInfo.cancelText}
-          actionText={alertInfo.actionText}
-          onOk={() => alertInfo.onOk(row)}
-          onCancel={() => alertInfo.onCancel()}
+          type={alertInfo?.type || "default"}
+          title={alertInfo?.title || "title"}
+          description={alertInfo?.description || "description"}
+          cancelText={alertInfo?.cancelText || "cancelText"}
+          actionText={alertInfo?.actionText || "actionText"}
+          onOk={() => alertInfo?.onOk(row) || true}
+          onCancel={() => alertInfo?.onCancel() || false}
         />
       </AlertBox>
     );
@@ -397,31 +451,33 @@ const ActionToolTip = ({ Icon, tip, onAction, triggerStyle, hasAlert, alertInfo,
 const MyTableFooter = ({ colSpan, startIndex, pageSize, totalDataCount, currentPage, setCurrentPage, totalPages }) => {
   return (
     <TableFooter>
-      <TableCell colSpan={colSpan} className={styles.body.tablebody.cell}>
-        <div className="flex items-center justify-between px-2">
-          <p className="text-sm text-muted-foreground">
-            {startIndex + 1} de {Math.min(startIndex + pageSize, totalDataCount)} sur {totalDataCount}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              <SquareArrowLeft />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              <SquareArrowRight />
-            </Button>
+      <TableRow>
+        <TableCell colSpan={colSpan} className={styles.body.tablebody.cell}>
+          <div className="flex items-center justify-between px-2">
+            <p className="text-sm text-muted-foreground">
+              {startIndex + 1} de {Math.min(startIndex + pageSize, totalDataCount)} sur {totalDataCount}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                <SquareArrowLeft />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                <SquareArrowRight />
+              </Button>
+            </div>
           </div>
-        </div>
-      </TableCell>
+        </TableCell>
+      </TableRow>
     </TableFooter>
   )
 }

@@ -38,7 +38,7 @@ export const HeaderComponent = () => {
                 { label: "synthèse Remboursement", href: "/dash/representant/Synthese_Remboursement" },
             ]
         },
-        { label: "ROBOTS", href: "#", isTrigger: false },
+        { label: "ROBOTS", href: "/dash/robots", isTrigger: false },
         {
             label: "Traçabilité", isTrigger: true, subItems: [
                 { label: "clients", href: "/dash/tracabilite/clients" },

@@ -100,7 +100,7 @@ const AlertBoxContainer = ({
       <AlertBoxOverlay />
       <AlertBoxContent>
         <AlertBoxTitle>{title}</AlertBoxTitle>
-        <AlertBoxDescription>{description}</AlertBoxDescription>
+        {typeof description === "string" ? <AlertBoxDescription>{description}</AlertBoxDescription> : description}
         <div className="flex justify-end gap-[25px]">
           <AlertBoxCancel type={type} onClick={onCancel}>{cancelText}</AlertBoxCancel>
           <AlertBoxAction type={type} onClick={onOk}>{actionText}</AlertBoxAction>
